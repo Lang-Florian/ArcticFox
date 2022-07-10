@@ -12,6 +12,7 @@
         "${fileDirname}/chess",
         "-std=c++23",
         "-fconstexpr-ops-limit=100000000000",
+        "-Ofast"
       ],
       "options": {
         "cwd": "${fileDirname}"

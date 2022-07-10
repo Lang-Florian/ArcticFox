@@ -26,6 +26,7 @@
 #define move_t unsigned int
 #define hash_t unsigned short
 #define outcome_t unsigned char
+#define eval_t unsigned long long
 
 
 // some bit manipulation macros

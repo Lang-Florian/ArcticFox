@@ -281,7 +281,7 @@ namespace BITBOARD {
     A3 = bitboard(SQUARE::A3), B3 = bitboard(SQUARE::B3), C3 = bitboard(SQUARE::C3), D3 = bitboard(SQUARE::D3), E3 = bitboard(SQUARE::E3), F3 = bitboard(SQUARE::F3), G3 = bitboard(SQUARE::G3), H3 = bitboard(SQUARE::H3),
     A2 = bitboard(SQUARE::A2), B2 = bitboard(SQUARE::B2), C2 = bitboard(SQUARE::C2), D2 = bitboard(SQUARE::D2), E2 = bitboard(SQUARE::E2), F2 = bitboard(SQUARE::F2), G2 = bitboard(SQUARE::G2), H2 = bitboard(SQUARE::H2),
     A1 = bitboard(SQUARE::A1), B1 = bitboard(SQUARE::B1), C1 = bitboard(SQUARE::C1), D1 = bitboard(SQUARE::D1), E1 = bitboard(SQUARE::E1), F1 = bitboard(SQUARE::F1), G1 = bitboard(SQUARE::G1), H1 = bitboard(SQUARE::H1),
-    none = 0ULL,
+    none = 0ULL, full = 0xFFFFFFFFFFFFFFFFULL,
   };
 
   static const bitboard_t file_A = 0x0101010101010101ULL;
@@ -389,10 +389,25 @@ namespace CASTLING {
 // initialize outcome definitions
 namespace OUTCOME {
   enum : outcome_t {
-    none =  0b00,
-    white = 0b01,
-    black = 0b10,
-    draw =  0b11,
+    none =                  0b00000000,
+
+    checkmate =             0b00000100,
+    checkmate_white =       0b00000101,
+    checkmate_black =       0b00000110,
+
+    draw =                  0b00001000,
+    stalemate =             0b00011011,
+    insufficient_material = 0b00101011,
+    fifty_move_rule =       0b01001011,
+    threefold_repetition =  0b10001011,
+  };
+
+  inline outcome_t checkmate_for(color_t color) {
+    return checkmate | color;
+  };
+
+  inline color_t winner(outcome_t outcome) {
+    return outcome & 0b11;
   };
 };
 

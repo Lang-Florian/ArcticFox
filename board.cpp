@@ -14,6 +14,10 @@
 #include "string"
 
 
+#ifndef __BOARD__MODULE__
+#define __BOARD__MODULE__
+
+
 #define HISTORY_SIZE 512
 #define MAX_LEGAL_MOVES 1024
 
@@ -187,6 +191,7 @@ class Board {
       return string;
     };
 
+    // make a move
     inline void make(move_t move) {
       // remove castling and enpassant square from the hash
       hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, false);
@@ -253,6 +258,7 @@ class Board {
       hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, true);
     };
 
+    // unmake a move
     inline void unmake() {
       // remove castling and enpassant square from the hash
       hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, false);
@@ -309,21 +315,25 @@ class Board {
       // };
     };
 
+    // check if the current player is in check
     inline bool is_check() {
       square_t king_square = get_lsb(bitboards[PIECE::to_color(PIECE::king, turn)]);
       return attackers(king_square) & ~bitboards[PIECE::to_color(PIECE::none, turn)];
     };
 
+    // check if the current player is in multi check
     inline bool is_multicheck() {
       square_t king_square = get_lsb(bitboards[PIECE::to_color(PIECE::king, turn)]);
       return popcount(attackers(king_square) & ~bitboards[PIECE::to_color(PIECE::none, turn)]) > 1;
     };
 
+    // get a bitboard of all the checkers
     inline bitboard_t checkers() {
       square_t king_square = get_lsb(bitboards[PIECE::to_color(PIECE::king, turn)]);
       return attackers(king_square) & ~bitboards[PIECE::to_color(PIECE::none, turn)];
     };
 
+    // get a bitboard of all the attacked squares of a given color
     inline bitboard_t attacks(color_t color) {
       bitboard_t attacks = BITBOARD::none;
       bitboard_t pawns = bitboards[PIECE::to_color(PIECE::pawn, color)];
@@ -356,6 +366,7 @@ class Board {
       return attacks;
     };
 
+    // get a bitboard of all safe squares for the king
     inline bitboard_t safe_king_squares() {
       bitboard_t attacks = BITBOARD::none;
       bitboard_t pawns = bitboards[PIECE::to_color(PIECE::pawn, COLOR::opponent(turn))];
@@ -389,6 +400,7 @@ class Board {
       return ~attacks;
     };
 
+    // get all the diagonal pinned pieces of a given color
     inline bitboard_t diagonal_pins(color_t color) {
       bitboard_t pins = BITBOARD::none;
       square_t king_square = get_lsb(bitboards[PIECE::to_color(PIECE::king, color)]);
@@ -406,6 +418,7 @@ class Board {
       return pins;
     };
 
+    // get all the coordinate pinned pieces of a given color
     inline bitboard_t coordinate_pins(color_t color) {
       bitboard_t pins = BITBOARD::none;
       square_t king_square = get_lsb(bitboards[PIECE::to_color(PIECE::king, color)]);
@@ -423,6 +436,7 @@ class Board {
       return pins;
     };
 
+    // get all the enpassant pinned pawns
     inline bitboard_t enpassant_pins() {
       bitboard_t pins = BITBOARD::none;
       if (enpassant_square == SQUARE::none) return pins;
@@ -443,6 +457,7 @@ class Board {
       return pins;
     };
 
+    // get all legal moves
     inline std::array<move_t, MAX_LEGAL_MOVES> legal_moves() {
       std::array<move_t, MAX_LEGAL_MOVES> moves;
       moves[0] = 0;
@@ -482,9 +497,9 @@ class Board {
       }
 
       // pawn moves
-      bitboard_t diagonal_pinned_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)]      &  diagonal_pinned & ~coordinate_pinned;
-      bitboard_t coordinate_pinned_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)]    & ~diagonal_pinned &  coordinate_pinned;
-      bitboard_t free_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)]                 & ~diagonal_pinned & ~coordinate_pinned;
+      bitboard_t diagonal_pinned_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)]   &  diagonal_pinned & ~coordinate_pinned;
+      bitboard_t coordinate_pinned_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)] & ~diagonal_pinned &  coordinate_pinned;
+      bitboard_t free_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)]              & ~diagonal_pinned & ~coordinate_pinned;
       bitboard_t enpassant_pinned_pawns = enpassant_pins();
 
       bitboard_t pushable_free_pawns;
@@ -748,6 +763,7 @@ class Board {
       return moves;
     };
 
+    // get all check evading moves
     inline std::array<move_t, MAX_LEGAL_MOVES> check_evasion(bitboard_t targets) {
       std::array<move_t, MAX_LEGAL_MOVES> moves;
       moves[0] = 0;
@@ -1016,6 +1032,7 @@ class Board {
       return moves;
     };
 
+    // print a perft
     inline U64 perft(int depth) {
       std::cout << "\tperft " << depth << " of " << fen() << std::endl << std::endl;
       U64 start = TIME::ms();
@@ -1028,14 +1045,15 @@ class Board {
         local_count += perft(depth - 1, true);
         unmake();
         U64 local_end = TIME::ms();
-        std::cout << "  " << MOVE::to_string(moves[i]) << ": \t" << local_count << "\t\tMN/s:\t" << ((float)local_count) / (1000 * (float)(local_end - local_start)) << std::endl;
+        std::cout << "  " << MOVE::to_string(moves[i]) << ": \t" << local_count << "\t\tMNps:\t" << ((float)local_count) / (1000 * (float)(local_end - local_start)) << std::endl;
         count += local_count;
       };
       U64 end = TIME::ms();
-      std::cout << std::endl << "  Total:\t" << count << "\t\tMN/s:\t" << ((float)count) / (1000 * (float)(end - start))  << std::endl;
+      std::cout << std::endl << "  Total:\t" << count << "\t\tMNps:\t" << ((float)count) / (1000 * (float)(end - start))  << std::endl;
       return count;
     };
 
+    // do a perft but only counting the positions
     inline U64 perft(int depth, bool count_only) {
       if (depth == 0) return 1;
       U64 count = 0;
@@ -1048,6 +1066,7 @@ class Board {
       return count;
     };
 
+    // generate a move from a uci string
     inline move_t from_uci(string_t uci) {
       square_t from = (uci[0] - 'a') + 8 * (7 - (uci[1] - '1'));
       square_t to = (uci[2] - 'a') + 8 * (7 - (uci[3] - '1'));
@@ -1068,3 +1087,6 @@ class Board {
 std::ostream& operator<<(std::ostream& os, Board& board) { 
   return os << board.to_string();
 };
+
+
+#endif

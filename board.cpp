@@ -21,6 +21,7 @@
 #define HISTORY_SIZE 512
 #define MAX_LEGAL_MOVES 1024
 
+
 struct history_t {
   move_t move;
   castling_t castling_rights;

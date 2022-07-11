@@ -61,7 +61,7 @@ int main() {
 
   board.set_fen(FEN::pos5);
   time = TIME::ms();
-  depth = 4;
+  depth = 5;
   count = board.perft(depth, true);
   cout << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;

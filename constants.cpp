@@ -135,7 +135,7 @@ namespace PIECE{
     rook =         0b00100,
     queen =        0b00101,
     king =         0b00110,
-    none_ =        0b00111,
+    NONE =         0b00111,
     white =        0b01000,
     white_pawn =   0b01001,
     white_knight = 0b01010,
@@ -143,7 +143,7 @@ namespace PIECE{
     white_rook =   0b01100,
     white_queen =  0b01101,
     white_king =   0b01110,
-    white_ =       0b01111,
+    WHITE =        0b01111,
     black =        0b10000,
     black_pawn =   0b10001,
     black_knight = 0b10010,
@@ -151,7 +151,7 @@ namespace PIECE{
     black_rook =   0b10100,
     black_queen =  0b10101,
     black_king =   0b10110,
-    black_ =       0b10111,
+    BLACK =        0b10111,
     both =         0b11000,
     both_pawn =    0b11001,
     both_knight =  0b11010,
@@ -159,7 +159,7 @@ namespace PIECE{
     both_rook =    0b11100,
     both_queen =   0b11101,
     both_king =    0b11110,
-    both_ =        0b11111,
+    BOTH =         0b11111,
   };
 
   inline color_t color(piece_t piece) {

@@ -19,7 +19,7 @@
   0000 0000 0000 0000 0000 0000 0011 1111     from
   0000 0000 0000 0000 0000 1111 1100 0000     to
   0000 0000 0000 0001 1111 0000 0000 0000     moved_piece
-  0000 0000 0011 1110 0000 0000 0000 0000     promoted_piece
+  0000 0000 0011 1110 0000 0000 0000 0000     target_piece
   0000 0111 1100 0000 0000 0000 0000 0000     captured_piece
   0000 1000 0000 0000 0000 0000 0000 0000     double_pawn_push
   0001 0000 0000 0000 0000 0000 0000 0000     enpassant
@@ -35,7 +35,7 @@ namespace MOVE {
   inline move_t move(square_t from,
                      square_t to,
                      piece_t moved_piece,
-                     piece_t promoted_piece=PIECE::none,
+                     piece_t target_piece=PIECE::none,
                      piece_t captured_piece=PIECE::none,
                      bool double_pawn_push=false,
                      bool enpassant=false,
@@ -43,12 +43,12 @@ namespace MOVE {
     return ((from) << 0) |
            ((to) << 6) |
            ((moved_piece) << 12) |
-           ((promoted_piece) << 17) |
+           ((target_piece) << 17) |
            ((captured_piece) << 22) |
            ((double_pawn_push) << 27) |
            ((enpassant) << 28) |
            ((castling) << 29) |
-           ((promoted_piece != PIECE::none) << 30) |
+           ((target_piece != PIECE::none) << 30) |
            ((captured_piece != PIECE::none) << 31);
   };
 
@@ -65,7 +65,7 @@ namespace MOVE {
     return (move >> 12) & 0b11111;
   };
 
-  inline piece_t promoted_piece(move_t move) {
+  inline piece_t target_piece(move_t move) {
     return (move >> 17) & 0b11111;
   };
 
@@ -94,7 +94,7 @@ namespace MOVE {
   };
 
   inline string_t to_string(move_t move) {
-    return SQUARE::to_string(from(move)) + SQUARE::to_string(to(move)) + PIECE::promotion_string(promoted_piece(move));
+    return SQUARE::to_string(from(move)) + SQUARE::to_string(to(move)) + PIECE::promotion_string(target_piece(move));
   };
 
   inline castling_t removed_castling(move_t move) {

@@ -266,7 +266,7 @@ class Board {
         place_piece(moved_piece, from);
       };
 
-      // add castling, enpassant square and the turn cchhange to the hash
+      // add castling, enpassant square and the turn change to the hash
       hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, true);
 
       uptodate = false;

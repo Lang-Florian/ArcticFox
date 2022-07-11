@@ -266,7 +266,7 @@ class Board {
         place_piece(moved_piece, from);
       };
 
-      // add castling, enpassant square and the turn change to the hash
+      // add castling, enpassant square and the turn cchhange to the hash
       hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, true);
 
       uptodate = false;
@@ -274,7 +274,8 @@ class Board {
 
     // print a perft
     inline U64 perft(int depth) {
-      std::cout << "\tperft " << depth << " of " << fen() << std::endl << std::endl;
+      std::cout << "\tperft " << depth << " of " << std::endl;
+      std::cout << "\t" << fen() << std::endl << std::endl;
       U64 start = TIME::ms();
       U64 count = 0;
       auto moves = get_legal_moves();
@@ -285,11 +286,11 @@ class Board {
         local_count += perft(depth - 1, true);
         unmake();
         U64 local_end = TIME::ms();
-        std::cout << "  " << MOVE::to_string(moves[i]) << ": \t" << local_count << "\t\tMNps:\t" << ((float)local_count) / (1000 * (float)(local_end - local_start)) << std::endl;
+        std::cout << "\t" << MOVE::to_string(moves[i]) << ": \t" << local_count << "\t\tMNps:\t" << ((float)local_count) / (1000 * (float)(local_end - local_start)) << std::endl;
         count += local_count;
       };
       U64 end = TIME::ms();
-      std::cout << std::endl << "  Total:\t" << count << "\t\tMNps:\t" << ((float)count) / (1000 * (float)(end - start))  << std::endl;
+      std::cout << std::endl << "\tTotal:\t" << count << "\t\tMNps:\t" << ((float)count) / (1000 * (float)(end - start))  << std::endl;
       return count;
     };
 
@@ -353,54 +354,63 @@ class Board {
 
     inline void add_castling_moves() {
       legal_moves[++legal_moves[0]] = MOVE::move(SQUARE::E1, SQUARE::G1, PIECE::white_king, PIECE::none, PIECE::none, false, false, true);
-      legal_moves[0] -= !(
-        (turn == COLOR::white) &&
-        !(opponent_attacks & CASTLING::white_king_attack_mask) &&
-        !(bitboards[PIECE::both] & CASTLING::white_king_piece_mask) &&
-        (castling_rights & CASTLING::white_king)
+      legal_moves[0] -= (
+        (turn != COLOR::white) ||
+        (opponent_attacks & CASTLING::white_king_attack_mask) ||
+        (bitboards[PIECE::both] & CASTLING::white_king_piece_mask) ||
+        !(castling_rights & CASTLING::white_king)
       );
       legal_moves[++legal_moves[0]] = MOVE::move(SQUARE::E1, SQUARE::C1, PIECE::white_king, PIECE::none, PIECE::none, false, false, true);
-      legal_moves[0] -= !(
-        (turn == COLOR::white) &&
-        !(opponent_attacks & CASTLING::white_queen_attack_mask) &&
-        !(bitboards[PIECE::both] & CASTLING::white_queen_piece_mask) &&
-        (castling_rights & CASTLING::white_queen)
+      legal_moves[0] -= (
+        (turn != COLOR::white) ||
+        (opponent_attacks & CASTLING::white_queen_attack_mask) ||
+        (bitboards[PIECE::both] & CASTLING::white_queen_piece_mask) ||
+        !(castling_rights & CASTLING::white_queen)
       );
       legal_moves[++legal_moves[0]] = MOVE::move(SQUARE::E8, SQUARE::G8, PIECE::black_king, PIECE::none, PIECE::none, false, false, true);
-      legal_moves[0] -= !(
-        (turn == COLOR::black) &&
-        !(opponent_attacks & CASTLING::black_king_attack_mask) &&
-        !(bitboards[PIECE::both] & CASTLING::black_king_piece_mask) &&
-        (castling_rights & CASTLING::black_king)
+      legal_moves[0] -= (
+        (turn != COLOR::black) ||
+        (opponent_attacks & CASTLING::black_king_attack_mask) ||
+        (bitboards[PIECE::both] & CASTLING::black_king_piece_mask) ||
+        !(castling_rights & CASTLING::black_king)
       );
       legal_moves[++legal_moves[0]] = MOVE::move(SQUARE::E8, SQUARE::C8, PIECE::black_king, PIECE::none, PIECE::none, false, false, true);
-      legal_moves[0] -= !(
-        (turn == COLOR::black) &&
-        !(opponent_attacks & CASTLING::black_queen_attack_mask) &&
-        !(bitboards[PIECE::both] & CASTLING::black_queen_piece_mask) &&
-        (castling_rights & CASTLING::black_queen)
+      legal_moves[0] -= (
+        (turn != COLOR::black) ||
+        (opponent_attacks & CASTLING::black_queen_attack_mask) ||
+        (bitboards[PIECE::both] & CASTLING::black_queen_piece_mask) ||
+        !(castling_rights & CASTLING::black_queen)
       );
     };
 
-    inline void add_enpassant_moves(bitboard_t targets=BITBOARD::full) {
+    inline void add_enpassant_moves(bitboard_t target=BITBOARD::full) {
       if (enpassant_square == SQUARE::none) return;
 
       bitboard_t bishop_pinned_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)] & ATTACK::pawn(COLOR::opponent(turn), enpassant_square) & ~enpassant_pins & bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       while (bishop_pinned_pawns) {
         square_t from = pop_lsb(bishop_pinned_pawns);
         legal_moves[++legal_moves[0]] = MOVE::move(from, enpassant_square, PIECE::to_color(PIECE::pawn, turn), PIECE::none, PIECE::none, false, true, false);
-        legal_moves[0] -= !get_bit(king_bishop_rays[turn & 0b1], enpassant_square) || (!get_bit(targets, enpassant_square) && (enpassant_square + 16 * (turn == COLOR::white) - 8 != get_lsb(checkers)));
+        legal_moves[0] -= (
+          !get_bit(king_bishop_rays[turn & 0b1], enpassant_square) ||
+          (
+            !get_bit(target, enpassant_square) &&
+            (enpassant_square + 16 * (turn == COLOR::white) - 8 != get_lsb(checkers))
+          )
+        );
       };
 
       bitboard_t free_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)] & ATTACK::pawn(COLOR::opponent(turn), enpassant_square) & ~enpassant_pins & ~bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       while (free_pawns) {
         square_t from = pop_lsb(free_pawns);
         legal_moves[++legal_moves[0]] = MOVE::move(from, enpassant_square, PIECE::to_color(PIECE::pawn, turn), PIECE::none, PIECE::none, false, true, false);
-        legal_moves[0] -= !get_bit(targets, enpassant_square) && (enpassant_square + 16 * (turn == COLOR::white) - 8 != get_lsb(checkers));
+        legal_moves[0] -= (
+          !get_bit(target, enpassant_square) &&
+          (enpassant_square + 16 * (turn == COLOR::white) - 8 != get_lsb(checkers))
+        );
       };
     };
 
-    inline void add_pawn_push_moves(bitboard_t targets=BITBOARD::full) {
+    inline void add_pawn_push_moves(bitboard_t target=BITBOARD::full) {
       bitboard_t free_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)] & ~bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       bitboard_t rook_pinned_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)] & ~bishop_pins[turn & 0b1] & rook_pins[turn & 0b1];
 
@@ -410,24 +420,24 @@ class Board {
 
       if (turn == COLOR::white) {
         pushable_pawns = (
-          (free_pawns & ~(bitboards[PIECE::both] << 8) & (targets << 8) & ~BITBOARD::rank_7) |
-          (rook_pinned_pawns & ~(bitboards[PIECE::both] << 8) & (targets << 8) & (king_rook_rays[turn & 0b1] << 8))
+          (free_pawns & ~(bitboards[PIECE::both] << 8) & (target << 8) & ~BITBOARD::rank_7) |
+          (rook_pinned_pawns & ~(bitboards[PIECE::both] << 8) & (target << 8) & (king_rook_rays[turn & 0b1] << 8))
         );
         doublepushable_pawns = (
-          (free_pawns & ~(bitboards[PIECE::both] << 8) & ~(bitboards[PIECE::both] << 16) & (targets << 16) & BITBOARD::rank_2) |
-          (rook_pinned_pawns & ~(bitboards[PIECE::both] << 8) & ~(bitboards[PIECE::both] << 16) & (targets << 16) & BITBOARD::rank_2 & (king_rook_rays[turn & 0b1] << 16))
+          (free_pawns & ~(bitboards[PIECE::both] << 8) & ~(bitboards[PIECE::both] << 16) & (target << 16) & BITBOARD::rank_2) |
+          (rook_pinned_pawns & ~(bitboards[PIECE::both] << 8) & ~(bitboards[PIECE::both] << 16) & (target << 16) & BITBOARD::rank_2 & (king_rook_rays[turn & 0b1] << 16))
         );
-        promoting_pawns = free_pawns & ~(bitboards[PIECE::both] << 8) & (targets << 8) & BITBOARD::rank_7;
+        promoting_pawns = free_pawns & ~(bitboards[PIECE::both] << 8) & (target << 8) & BITBOARD::rank_7;
       } else {
         pushable_pawns = (
-          (free_pawns & ~(bitboards[PIECE::both] >> 8) & (targets >> 8) & ~BITBOARD::rank_2) |
-          (rook_pinned_pawns & ~(bitboards[PIECE::both] >> 8) & (targets >> 8) & (king_rook_rays[turn & 0b1] >> 8))
+          (free_pawns & ~(bitboards[PIECE::both] >> 8) & (target >> 8) & ~BITBOARD::rank_2) |
+          (rook_pinned_pawns & ~(bitboards[PIECE::both] >> 8) & (target >> 8) & (king_rook_rays[turn & 0b1] >> 8))
         );
         doublepushable_pawns = (
-          (free_pawns & ~(bitboards[PIECE::both] >> 8) & ~(bitboards[PIECE::both] >> 16) & (targets >> 16) & BITBOARD::rank_7) |
-          (rook_pinned_pawns & ~(bitboards[PIECE::both] >> 8) & ~(bitboards[PIECE::both] >> 16) & (targets >> 16) & BITBOARD::rank_7 & (king_rook_rays[turn & 0b1] >> 16))
+          (free_pawns & ~(bitboards[PIECE::both] >> 8) & ~(bitboards[PIECE::both] >> 16) & (target >> 16) & BITBOARD::rank_7) |
+          (rook_pinned_pawns & ~(bitboards[PIECE::both] >> 8) & ~(bitboards[PIECE::both] >> 16) & (target >> 16) & BITBOARD::rank_7 & (king_rook_rays[turn & 0b1] >> 16))
         );
-        promoting_pawns = free_pawns & ~(bitboards[PIECE::both] >> 8) & (targets >> 8) & BITBOARD::rank_2;
+        promoting_pawns = free_pawns & ~(bitboards[PIECE::both] >> 8) & (target >> 8) & BITBOARD::rank_2;
       };
 
       while (pushable_pawns) {
@@ -450,7 +460,7 @@ class Board {
       };
     };
 
-    inline void add_pawn_capture_moves(bitboard_t targets=BITBOARD::full) {
+    inline void add_pawn_capture_moves(bitboard_t target=BITBOARD::full) {
       bitboard_t free_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)] & ~bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       bitboard_t bishop_pinned_pawns = bitboards[PIECE::to_color(PIECE::pawn, turn)] & bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
 
@@ -463,7 +473,7 @@ class Board {
       
       while (promoting_free_pawns) {
         square_t from = pop_lsb(promoting_free_pawns);
-        bitboard_t possible_to = ATTACK::pawn(turn, from) & bitboards[PIECE::to_color(PIECE::none, COLOR::opponent(turn))] & targets;
+        bitboard_t possible_to = ATTACK::pawn(turn, from) & bitboards[PIECE::to_color(PIECE::none, COLOR::opponent(turn))] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::pawn, turn), PIECE::to_color(PIECE::knight, turn), pieces[to], false, false, false);
@@ -474,7 +484,7 @@ class Board {
       };
       while (not_promoting_free_pawns) {
         square_t from = pop_lsb(not_promoting_free_pawns);
-        bitboard_t possible_to = ATTACK::pawn(turn, from) & bitboards[PIECE::to_color(PIECE::none, COLOR::opponent(turn))] & targets;
+        bitboard_t possible_to = ATTACK::pawn(turn, from) & bitboards[PIECE::to_color(PIECE::none, COLOR::opponent(turn))] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::pawn, turn), PIECE::none, pieces[to], false, false, false);
@@ -482,7 +492,7 @@ class Board {
       };
       while (promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = ATTACK::pawn(turn, from) & bitboards[PIECE::to_color(PIECE::none, COLOR::opponent(turn))] & king_bishop_rays[turn & 0b1] & targets;
+        bitboard_t possible_to = ATTACK::pawn(turn, from) & bitboards[PIECE::to_color(PIECE::none, COLOR::opponent(turn))] & king_bishop_rays[turn & 0b1] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::pawn, turn), PIECE::to_color(PIECE::knight, turn), pieces[to], false, false, false);
@@ -493,7 +503,7 @@ class Board {
       };
       while (not_promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(not_promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = ATTACK::pawn(turn, from) & bitboards[PIECE::to_color(PIECE::none, COLOR::opponent(turn))] & king_bishop_rays[turn & 0b1] & targets;
+        bitboard_t possible_to = ATTACK::pawn(turn, from) & bitboards[PIECE::to_color(PIECE::none, COLOR::opponent(turn))] & king_bishop_rays[turn & 0b1] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::pawn, turn), PIECE::none, pieces[to], false, false, false);
@@ -501,11 +511,11 @@ class Board {
       };
     };
 
-    inline void add_knight_moves(bitboard_t targets=BITBOARD::full) {
+    inline void add_knight_moves(bitboard_t target=BITBOARD::full) {
       bitboard_t free_knights = bitboards[PIECE::to_color(PIECE::knight, turn)] & ~bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       while (free_knights) {
         square_t from = pop_lsb(free_knights);
-        bitboard_t possible_to = ATTACK::knight(from) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & targets;
+        bitboard_t possible_to = ATTACK::knight(from) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::knight, turn), PIECE::none, pieces[to], false, false, false);
@@ -513,11 +523,11 @@ class Board {
       };
     };
 
-    inline void add_bishop_moves(bitboard_t targets=BITBOARD::full) {
+    inline void add_bishop_moves(bitboard_t target=BITBOARD::full) {
       bitboard_t bishop_pinned_bishops = bitboards[PIECE::to_color(PIECE::bishop, turn)] & bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       while (bishop_pinned_bishops) {
         square_t from = pop_lsb(bishop_pinned_bishops);
-        bitboard_t possible_to = ATTACK::bishop(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & king_bishop_rays[turn & 0b1] & targets;
+        bitboard_t possible_to = ATTACK::bishop(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & king_bishop_rays[turn & 0b1] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::bishop, turn), PIECE::none, pieces[to], false, false, false);
@@ -527,7 +537,7 @@ class Board {
       bitboard_t free_bishops = bitboards[PIECE::to_color(PIECE::bishop, turn)] & ~bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       while (free_bishops) {
         square_t from = pop_lsb(free_bishops);
-        bitboard_t possible_to = ATTACK::bishop(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & targets;
+        bitboard_t possible_to = ATTACK::bishop(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::bishop, turn), PIECE::none, pieces[to], false, false, false);
@@ -535,11 +545,11 @@ class Board {
       };
     };
 
-    inline void add_rook_moves(bitboard_t targets=BITBOARD::full) {
+    inline void add_rook_moves(bitboard_t target=BITBOARD::full) {
       bitboard_t rook_pinned_rooks = bitboards[PIECE::to_color(PIECE::rook, turn)] & ~bishop_pins[turn & 0b1] & rook_pins[turn & 0b1];
       while (rook_pinned_rooks) {
         square_t from = pop_lsb(rook_pinned_rooks);
-        bitboard_t possible_to = ATTACK::rook(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & king_rook_rays[turn & 0b1] & targets;
+        bitboard_t possible_to = ATTACK::rook(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & king_rook_rays[turn & 0b1] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::rook, turn), PIECE::none, pieces[to], false, false, false);
@@ -549,7 +559,7 @@ class Board {
       bitboard_t free_rooks = bitboards[PIECE::to_color(PIECE::rook, turn)] & ~bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       while (free_rooks) {
         square_t from = pop_lsb(free_rooks);
-        bitboard_t possible_to = ATTACK::rook(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & targets;
+        bitboard_t possible_to = ATTACK::rook(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::rook, turn), PIECE::none, pieces[to], false, false, false);
@@ -557,11 +567,11 @@ class Board {
       };
     };
 
-    inline void add_queen_moves(bitboard_t targets=BITBOARD::full) {
+    inline void add_queen_moves(bitboard_t target=BITBOARD::full) {
       bitboard_t bishop_pinned_queens = bitboards[PIECE::to_color(PIECE::queen, turn)] & bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       while (bishop_pinned_queens) {
         square_t from = pop_lsb(bishop_pinned_queens);
-        bitboard_t possible_to = ATTACK::bishop(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & king_bishop_rays[turn & 0b1] & targets;
+        bitboard_t possible_to = ATTACK::bishop(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & king_bishop_rays[turn & 0b1] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::queen, turn), PIECE::none, pieces[to], false, false, false);
@@ -571,7 +581,7 @@ class Board {
       bitboard_t rook_pinned_queens = bitboards[PIECE::to_color(PIECE::queen, turn)] & ~bishop_pins[turn & 0b1] & rook_pins[turn & 0b1];
       while (rook_pinned_queens) {
         square_t from = pop_lsb(rook_pinned_queens);
-        bitboard_t possible_to = ATTACK::rook(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & king_rook_rays[turn & 0b1] & targets;
+        bitboard_t possible_to = ATTACK::rook(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & king_rook_rays[turn & 0b1] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::queen, turn), PIECE::none, pieces[to], false, false, false);
@@ -581,7 +591,7 @@ class Board {
       bitboard_t free_queens = bitboards[PIECE::to_color(PIECE::queen, turn)] & ~bishop_pins[turn & 0b1] & ~rook_pins[turn & 0b1];
       while (free_queens) {
         square_t from = pop_lsb(free_queens);
-        bitboard_t possible_to = ATTACK::queen(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & targets;
+        bitboard_t possible_to = ATTACK::queen(from, bitboards[PIECE::both]) & ~bitboards[PIECE::to_color(PIECE::none, turn)] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           legal_moves[++legal_moves[0]] = MOVE::move(from, to, PIECE::to_color(PIECE::queen, turn), PIECE::none, pieces[to], false, false, false);
@@ -604,7 +614,7 @@ class Board {
     inline void add_check_evading_moves() {
       square_t checker_square = get_lsb(checkers);
       piece_t checker_type = PIECE::type(pieces[checker_square]);
-      bitboard_t targets = (
+      bitboard_t target = (
         bitboard(checker_square) |
         ((king_bishop_attacks[turn & 0b1] & ATTACK::bishop(checker_square, bitboards[PIECE::both])) * (checker_type == PIECE::bishop)) |
         ((king_rook_attacks[turn & 0b1] & ATTACK::rook(checker_square, bitboards[PIECE::both])) * (checker_type == PIECE::rook)) |
@@ -612,13 +622,13 @@ class Board {
         ((king_rook_attacks[turn & 0b1] & ATTACK::rook(checker_square, bitboards[PIECE::both])) * (checker_type == PIECE::queen && (king_rook_attacks[turn & 0b1] & bitboards[PIECE::to_color(PIECE::queen, COLOR::opponent(turn))])))
       );
 
-      add_pawn_push_moves(targets);
-      add_pawn_capture_moves(targets);
-      add_enpassant_moves(targets);
-      add_knight_moves(targets);
-      add_bishop_moves(targets);
-      add_rook_moves(targets);
-      add_queen_moves(targets);
+      add_pawn_push_moves(target);
+      add_pawn_capture_moves(target);
+      add_enpassant_moves(target);
+      add_knight_moves(target);
+      add_bishop_moves(target);
+      add_rook_moves(target);
+      add_queen_moves(target);
       add_king_moves();
     };
 

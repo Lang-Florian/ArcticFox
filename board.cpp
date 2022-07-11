@@ -10,6 +10,7 @@
 #include "zobrist.cpp"
 
 #include "array"
+#include "algorithm"
 #include "iostream"
 #include "string"
 
@@ -27,6 +28,7 @@ struct history_t {
   castling_t castling_rights;
   square_t enpassant_square;
   U16 halfmove_clock;
+  hash_t hash;
 };
 
 
@@ -158,17 +160,18 @@ class Board {
     };
 
     // make a move
-    inline void make(move_t move) {
-      // remove castling and enpassant square from the hash
-      hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, false);
-      
-      // add the move, castling_rights and enpassant square to the history
+    inline void make(move_t move) {      
+      // add the move, castling rights, enpassant square, halfmove clock and hash to the history
       history[history_index++] = history_t {
         move,
         castling_rights,
         enpassant_square,
         halfmove_clock,
+        hash,
       };
+
+      // remove castling and enpassant square from the hash
+      hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, false);
 
       piece_t moved_piece = MOVE::moved_piece(move);
       square_t from = MOVE::from(move);
@@ -228,9 +231,6 @@ class Board {
 
     // unmake a move
     inline void unmake() {
-      // remove castling and enpassant square from the hash
-      hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, false);
-
       // change turn
       turn = COLOR::opponent(turn);
       
@@ -240,6 +240,7 @@ class Board {
       castling_rights = element.castling_rights;
       enpassant_square = element.enpassant_square;
       halfmove_clock = element.halfmove_clock;
+      hash = element.hash;
       fullmove_clock -= (turn == COLOR::black);
 
 
@@ -265,9 +266,6 @@ class Board {
         remove_piece(to);
         place_piece(moved_piece, from);
       };
-
-      // add castling, enpassant square and the turn change to the hash
-      hash = ZOBRIST::hash(hash, PIECE::none, SQUARE::none, castling_rights, enpassant_square, true);
 
       uptodate = false;
     };
@@ -325,6 +323,11 @@ class Board {
       return legal_moves;
     };
 
+    inline outcome_t get_outcome() {
+      update();
+      return outcome;
+    };
+
     inline void push_uci(string_t uci) {
       make(from_uci(uci));
     };
@@ -332,10 +335,9 @@ class Board {
   private:
     bool uptodate;
 
-    outcome_t outcome;//
+    outcome_t outcome;
     bool in_check;
     bool in_multicheck;
-    bool in_checkmate;
     bitboard_t checkers;
     std::array<bitboard_t, 2> attacks;
     std::array<bitboard_t, 2> safe_king_squares;
@@ -830,8 +832,29 @@ class Board {
 
       update_legal_moves();
 
-      // check if current player is in checkmate
-      in_checkmate = in_check && (legal_moves[0] == 0);
+      // check board outcome
+      bool in_checkmate = in_check && (legal_moves[0] == 0);
+
+      bool in_stalemate = !in_check && (legal_moves[0] == 0);
+      bool fifty_move_draw = (halfmove_clock >= 100);
+      bool threefold_repetition = false;
+      if (history_index > 1) {
+        threefold_repetition = std::ranges::count_if(&history[0], &history[history_index - 1], [this](const auto& element) {
+          return element.hash == hash;
+        }) >= 3;
+      };
+
+      if (in_checkmate) {
+        outcome = OUTCOME::checkmate_for(COLOR::opponent(turn));
+      } else if (in_stalemate) {
+        outcome = OUTCOME::stalemate;
+      } else if (fifty_move_draw) {
+        outcome = OUTCOME::fifty_move_rule;
+      } else if (threefold_repetition) {
+        outcome = OUTCOME::threefold_repetition;
+      } else {
+        outcome = OUTCOME::none;
+      }
 
       uptodate = true;
     };

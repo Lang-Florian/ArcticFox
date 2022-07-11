@@ -14,7 +14,7 @@
 #include "string"
 
 
-#ifndef __BOARD__MODULE__
+#ifndef __BOARD__MODULE__ 
 #define __BOARD__MODULE__
 
 
@@ -197,7 +197,7 @@ class Board {
         if (MOVE::promotion(move)) {
           remove_piece(from);
           remove_piece(to);
-          place_piece(MOVE::promoted_piece(move), to);
+          place_piece(MOVE::target_piece(move), to);
         } else {
           remove_piece(from);
           remove_piece(to);
@@ -206,7 +206,7 @@ class Board {
       } else {
         if (MOVE::promotion(move)) {
           remove_piece(from);
-          place_piece(MOVE::promoted_piece(move), to);
+          place_piece(MOVE::target_piece(move), to);
         } else if (MOVE::double_pawn_push(move)) {
           remove_piece(from);
           place_piece(moved_piece, to);
@@ -335,6 +335,7 @@ class Board {
     outcome_t outcome;//
     bool in_check;
     bool in_multicheck;
+    bool in_checkmate;
     bitboard_t checkers;
     std::array<bitboard_t, 2> attacks;
     std::array<bitboard_t, 2> safe_king_squares;
@@ -829,6 +830,9 @@ class Board {
 
       update_legal_moves();
 
+      // check if current player is in checkmate
+      in_checkmate = in_check && (legal_moves[0] == 0);
+
       uptodate = true;
     };
 
@@ -837,15 +841,15 @@ class Board {
       square_t from = (uci[0] - 'a') + 8 * (7 - (uci[1] - '1'));
       square_t to = (uci[2] - 'a') + 8 * (7 - (uci[3] - '1'));
       piece_t moved_piece = pieces[from];
-      piece_t promoted_piece = PIECE::none;
+      piece_t target_piece = PIECE::none;
       if (uci.length() == 5) {
-        promoted_piece = PIECE::to_color(PIECE::from_char(uci[4]), turn);
+        target_piece = PIECE::to_color(PIECE::from_char(uci[4]), turn);
       };
       piece_t captured_piece = pieces[to];
       bool double_pawn_push = (PIECE::type(moved_piece) == PIECE::pawn) && (((from - to) == 16) || ((from - to) == -16));
       bool enpassant = (PIECE::type(moved_piece) == PIECE::pawn) && (to == enpassant_square);
       bool castling = (PIECE::type(moved_piece) == PIECE::king) && (((from - to) == 2) || ((from - to) == -2));
-      return MOVE::move(from, to, moved_piece, promoted_piece, captured_piece, double_pawn_push, enpassant, castling);
+      return MOVE::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling);
     };
 };
 

@@ -12,7 +12,12 @@
         "${fileDirname}/main",
         "-std=c++23",
         "-fconstexpr-ops-limit=100000000000",
-        "-Ofast"
+        "-Ofast",
+        "-march=native",
+        "-flto",
+        "-fno-signed-zeros",
+        "-frename-registers",
+        "-funroll-loops"
       ],
       "options": {
         "cwd": "${fileDirname}"

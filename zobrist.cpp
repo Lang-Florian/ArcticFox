@@ -3,99 +3,87 @@
 #endif
 
 
-#include "constants.cpp"
-#include "random.cpp"
-
-#include "array"
-
-
 #ifndef __ZOBRIST__MODULE__
 #define __ZOBRIST__MODULE__
 
 
-namespace ZOBRIST {
-  static constexpr U32 random(U32 hash) {
-    hash ^= hash << 13;
-    hash ^= hash >> 17;
-    hash ^= hash << 5;
-    return hash;
-  };
+#include <array>
 
-  static constexpr std::array<std::array<hash_t, 65>, 32> generate_piece_hash_table() {
-    std::array<std::array<hash_t, 65>, 32> piece_hash_table{0};
-    U32 hash = 1804289383;
-    for (square_t square = 0; square < 65; square++) {
-      hash = random(hash);
-      piece_hash_table[PIECE::white_pawn][square] =   (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::white_knight][square] = (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::white_bishop][square] = (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::white_rook][square] =   (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::white_queen][square] =  (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::white_king][square] =   (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::black_pawn][square] =   (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::black_knight][square] = (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::black_bishop][square] = (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::black_rook][square] =   (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::black_queen][square] =  (hash_t)hash;
-      hash = random(hash);
-      piece_hash_table[PIECE::black_king][square] =   (hash_t)hash;
+#include "constants.cpp"
+#include "random.cpp"
+
+
+/*
+
+  a class for the zobrist hash
+
+*/
+class Zobrist {
+  private:
+    std::array<std::array<hash_t, 64>, 24> piece{0ULL};
+    std::array<hash_t, 16> castling{0ULL};
+    std::array<hash_t, 65> enpassant{0ULL};
+    hash_t turn = 0ULL;
+
+  public:
+    hash_t hash;
+
+    // initialize the tables with random values
+    Zobrist() {
+      for (square_t square = 0; square < 64; square++) {
+        this->piece[piece::white_pawn][square] = randomness::generate<hash_t>();
+        this->piece[piece::white_knight][square] = randomness::generate<hash_t>();
+        this->piece[piece::white_bishop][square] = randomness::generate<hash_t>();
+        this->piece[piece::white_rook][square] = randomness::generate<hash_t>();
+        this->piece[piece::white_queen][square] = randomness::generate<hash_t>();
+        this->piece[piece::white_king][square] = randomness::generate<hash_t>();
+        this->piece[piece::black_pawn][square] = randomness::generate<hash_t>();
+        this->piece[piece::black_knight][square] = randomness::generate<hash_t>();
+        this->piece[piece::black_bishop][square] = randomness::generate<hash_t>();
+        this->piece[piece::black_rook][square] = randomness::generate<hash_t>();
+        this->piece[piece::black_queen][square] = randomness::generate<hash_t>();
+        this->piece[piece::black_king][square] = randomness::generate<hash_t>();
+      };
+      for (castling_t castling = 0; castling < 16; castling++) {
+        this->castling[castling] = randomness::generate<hash_t>();
+      };
+      for (square_t square = 0; square < 65; square++) {
+        this->enpassant[square] = randomness::generate<hash_t>();
+      };
+      this->turn = randomness::generate<hash_t>();
     };
-    return piece_hash_table;
-  };
 
-  static constexpr std::array<std::array<hash_t, 65>, 32> piece_hash_table = generate_piece_hash_table();
-  
-  static constexpr std::array<hash_t, 16> generate_castling_hash_table() {
-    std::array<hash_t, 16> castling_hash_table{0};
-    U32 hash = 3267813459;
-    for (castling_t castling = 0; castling < 16; castling++) {
-      hash = random(hash);
-      castling_hash_table[castling] = (hash_t)hash;
+    // update the hash with a piece change
+    void update_piece(piece_t piece, square_t square) {
+      this->hash ^= this->piece[piece][square];
     };
-    return castling_hash_table;
-  };
 
-  static constexpr std::array<hash_t, 16> castling_hash_table = generate_castling_hash_table();
-
-  static constexpr std::array<hash_t, 65> generate_enpassant_hash_table() {
-    std::array<hash_t, 65> enpassant_hash_table{0};
-    U32 hash = 2907283415;
-    for (square_t square = 0; square < 65; square++) {
-      hash = random(hash);
-      enpassant_hash_table[square] = (hash_t)hash;
+    // update the hash with a castling change
+    void update_castling(castling_t castling) {
+      this->hash ^= this->castling[castling];
     };
-    return enpassant_hash_table;
-  };
 
-  static constexpr std::array<hash_t, 65> enpassant_hash_table = generate_enpassant_hash_table();
+    // update the hash with a enpassant change
+    void update_enpassant(square_t square) {
+      this->hash ^= this->enpassant[square];
+    };
 
-  static constexpr hash_t turn_hash = (hash_t)random(1289203691);
+    // update the hash with a turn change
+    void update_turn() {
+      this->hash ^= this->turn;
+    };
 
-  inline hash_t hash(hash_t hash,
-                     piece_t piece=PIECE::none,
-                     square_t square=SQUARE::none,
-                     castling_t castling=CASTLING::none,
-                     square_t enpassant_square=SQUARE::none,
-                     bool turn=false) {
-    return hash ^
-           piece_hash_table[piece][square] ^
-           castling_hash_table[castling] ^
-           enpassant_hash_table[enpassant_square] ^
-           (turn_hash * turn);
-  };
+    // clear the hash
+    void clear() {
+      this->hash = 0ULL;
+    };
 
-  hash_t none = 0;
+    // update hash with value
+    void update(hash_t value) {
+      this->hash = value;
+    };
 };
 
 
-#endif
+
+#endif // __ZOBRIST__MODULE__

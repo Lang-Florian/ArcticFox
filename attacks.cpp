@@ -3,96 +3,110 @@
 #endif
 
 
-#include "constants.cpp"
-#include "magic.cpp"
-
-#include "array"
-
-
 #ifndef __ATTACKS__MODULE__
 #define __ATTACKS__MODULE__
 
 
-namespace ATTACK {
-  // generate the pawn attacks for both sides
-  static constexpr std::array<std::array<bitboard_t, 64>, 2> generate_pawn() {
-    std::array<std::array<bitboard_t, 64>, 2> pawn_attacks{BITBOARD::none};
+#include <array>
+
+#include "constants.cpp"
+#include "magic.cpp"
+
+
+/*
+ 
+  generate attack tables for pawns, knights and kings at compile time
+ 
+*/
+namespace attack_tables {
+  constexpr std::array<std::array<bitboard_t, 2>, 64> pawn = {[]() constexpr {
+    std::array<std::array<bitboard_t, 2>, 64> pawn{bitboard::none};
     for (square_t square = 0; square < 64; square++) {
-      pawn_attacks[COLOR::white & 0b1][square] = ((bitboard(square) >> 9) & ~BITBOARD::file_H) | ((bitboard(square) >> 7) & ~BITBOARD::file_A);
-      pawn_attacks[COLOR::black & 0b1][square] = ((bitboard(square) << 9) & ~BITBOARD::file_A) | ((bitboard(square) << 7) & ~BITBOARD::file_H);
+      pawn[square][color::white] = ((bitboard(square) >> 9) & ~bitboard::file_h) | ((bitboard(square) >> 7) & ~bitboard::file_a);
+      pawn[square][color::black] = ((bitboard(square) << 9) & ~bitboard::file_a) | ((bitboard(square) << 7) & ~bitboard::file_h);
     };
-    return pawn_attacks;
-  };
+    return pawn;
+  }()};
 
-  static constexpr std::array<std::array<bitboard_t, 64>, 2> __pawn__ = generate_pawn();
-
-  inline bitboard_t pawn(color_t color, square_t square) {
-    return __pawn__[color & 0b1][square];
-  };
-
-  // generate the knight attacks
-  static constexpr std::array<bitboard_t, 64> generate_knight() {
-    std::array<bitboard_t, 64> knight_attacks{BITBOARD::none};
+  constexpr std::array<bitboard_t, 64> knight= {[]() constexpr {
+    std::array<bitboard_t, 64> knight{bitboard::none};
     for (square_t square = 0; square < 64; square++) {
-      knight_attacks[square] = ((bitboard(square) >>  6) & ~BITBOARD::file_A & ~BITBOARD::file_B & ~BITBOARD::rank_1) |
-                               ((bitboard(square) <<  6) & ~BITBOARD::file_G & ~BITBOARD::file_H & ~BITBOARD::rank_8) |
-                               ((bitboard(square) >> 10) & ~BITBOARD::file_G & ~BITBOARD::file_H & ~BITBOARD::rank_1) |
-                               ((bitboard(square) << 10) & ~BITBOARD::file_A & ~BITBOARD::file_B & ~BITBOARD::rank_8) |
-                               ((bitboard(square) >> 15) & ~BITBOARD::file_A & ~BITBOARD::rank_1 & ~BITBOARD::rank_2) |
-                               ((bitboard(square) << 15) & ~BITBOARD::file_H & ~BITBOARD::rank_7 & ~BITBOARD::rank_8) |
-                               ((bitboard(square) >> 17) & ~BITBOARD::file_H & ~BITBOARD::rank_1 & ~BITBOARD::rank_2) |
-                               ((bitboard(square) << 17) & ~BITBOARD::file_A & ~BITBOARD::rank_7 & ~BITBOARD::rank_8);
+      knight[square] = ((bitboard(square) >>  6) & ~bitboard::file_a & ~bitboard::file_b & ~bitboard::rank_1) |
+                       ((bitboard(square) <<  6) & ~bitboard::file_g & ~bitboard::file_h & ~bitboard::rank_8) |
+                       ((bitboard(square) >> 10) & ~bitboard::file_g & ~bitboard::file_h & ~bitboard::rank_1) |
+                       ((bitboard(square) << 10) & ~bitboard::file_a & ~bitboard::file_b & ~bitboard::rank_8) |
+                       ((bitboard(square) >> 15) & ~bitboard::file_a & ~bitboard::rank_1 & ~bitboard::rank_2) |
+                       ((bitboard(square) << 15) & ~bitboard::file_h & ~bitboard::rank_7 & ~bitboard::rank_8) |
+                       ((bitboard(square) >> 17) & ~bitboard::file_h & ~bitboard::rank_1 & ~bitboard::rank_2) |
+                       ((bitboard(square) << 17) & ~bitboard::file_a & ~bitboard::rank_7 & ~bitboard::rank_8);
     };
-    return knight_attacks;
-  };
+    return knight;
+  }()};
 
-  static constexpr std::array<bitboard_t, 64> __knight__= generate_knight();
-
-  inline bitboard_t knight(square_t square) {
-    return __knight__[square];
-  };
-
-  // generate the king attacks
-  static constexpr std::array<bitboard_t, 64> generate_king() {
-    std::array<bitboard_t, 64> king_attacks{BITBOARD::none};
+  constexpr std::array<bitboard_t, 64> king = {[]() constexpr {
+    std::array<bitboard_t, 64> king{bitboard::none};
     for (square_t square = 0; square < 64; square++) {
-      king_attacks[square] = ((bitboard(square) >> 1) & ~BITBOARD::file_H) |
-                             ((bitboard(square) << 1) & ~BITBOARD::file_A) |
-                             ((bitboard(square) >> 8) & ~BITBOARD::rank_1) |
-                             ((bitboard(square) << 8) & ~BITBOARD::rank_8) |
-                             ((bitboard(square) >> 7) & ~BITBOARD::file_A & ~BITBOARD::rank_1) |
-                             ((bitboard(square) << 7) & ~BITBOARD::file_H & ~BITBOARD::rank_8) |
-                             ((bitboard(square) >> 9) & ~BITBOARD::file_H & ~BITBOARD::rank_1) |
-                             ((bitboard(square) << 9) & ~BITBOARD::file_A & ~BITBOARD::rank_8);
+      king[square] = ((bitboard(square) >> 1) & ~bitboard::file_h) |
+                     ((bitboard(square) << 1) & ~bitboard::file_a) |
+                     ((bitboard(square) >> 8) & ~bitboard::rank_1) |
+                     ((bitboard(square) << 8) & ~bitboard::rank_8) |
+                     ((bitboard(square) >> 7) & ~bitboard::file_a & ~bitboard::rank_1) |
+                     ((bitboard(square) << 7) & ~bitboard::file_h & ~bitboard::rank_8) |
+                     ((bitboard(square) >> 9) & ~bitboard::file_h & ~bitboard::rank_1) |
+                     ((bitboard(square) << 9) & ~bitboard::file_a & ~bitboard::rank_8);
     };
-    return king_attacks;
+    return king;
+  }()};
+};
+
+
+/*
+ 
+  function to get the attack bitboard for a given piece and square
+ 
+*/
+template <piece_t piece>
+bitboard_t attack(square_t square) {
+  if constexpr (piece == piece::white_pawn) {
+    return attack_tables::pawn[square][color::white];
+  } else if constexpr (piece == piece::black_pawn) {
+    return attack_tables::pawn[square][color::black];
+  } else if constexpr (piece == piece::knight || piece == piece::white_knight || piece == piece::black_knight) {
+    return attack_tables::knight[square];
+  } else if constexpr (piece == piece::king || piece == piece::white_king || piece == piece::black_king) {
+    return attack_tables::king[square];
+  } else {
+    return bitboard::none;
   };
+};
 
-  static constexpr std::array<bitboard_t, 64> __king__ = generate_king();
-
-  inline bitboard_t king(square_t square) {
-    return __king__[square];
-  };
-
-  // define the functions to access the magic table
-  inline bitboard_t bishop(square_t square, bitboard_t occupancy) {
-    return MAGIC::table[
-      MAGIC::bishop[square].offset +
-      (((occupancy | MAGIC::bishop[square].mask) * MAGIC::bishop[square].magic_number) >> (64 - 9))
+template <piece_t piece>
+bitboard_t attack(square_t square, bitboard_t occupancy) {
+  if constexpr (piece == piece::bishop || piece == piece::white_bishop || piece == piece::black_bishop) {
+    return magic::table[
+      magic::bishop[square].offset +
+      (((occupancy | magic::bishop[square].mask) * magic::bishop[square].magic_number) >> (64 - 9))
     ];
-  };
-
-  inline bitboard_t rook(square_t square, bitboard_t occupancy) {
-    return MAGIC::table[
-      MAGIC::rook[square].offset +
-      (((occupancy | MAGIC::rook[square].mask) * MAGIC::rook[square].magic_number) >> (64 - 12))
+  } else if constexpr (piece == piece::rook || piece == piece::white_rook || piece == piece::black_rook) {
+    return magic::table[
+      magic::rook[square].offset +
+      (((occupancy | magic::rook[square].mask) * magic::rook[square].magic_number) >> (64 - 12))
     ];
-  };
-
-  inline bitboard_t queen(square_t square, bitboard_t occupancy) {
-    return bishop(square, occupancy) | rook(square, occupancy);
+  } else if constexpr (piece == piece::queen || piece == piece::white_queen || piece == piece::black_queen) {
+    return (
+      magic::table[
+        magic::bishop[square].offset +
+        (((occupancy | magic::bishop[square].mask) * magic::bishop[square].magic_number) >> (64 - 9))
+      ] |
+      magic::table[
+        magic::rook[square].offset +
+        (((occupancy | magic::rook[square].mask) * magic::rook[square].magic_number) >> (64 - 12))
+      ]
+    );
+  } else {
+    return bitboard::none;
   };
 };
 
 
-#endif
+#endif // __ATTACKS__MODULE__

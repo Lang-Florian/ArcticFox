@@ -3,30 +3,50 @@
 #endif
 
 
-#include "constants.cpp"
-
-#include <chrono>
-
-
 #ifndef __TIME__MODULE__
 #define __TIME__MODULE__
 
 
-namespace TIME {
+#include <chrono>
+
+#include "constants.cpp"
+
+
+/*
+
+  functions for getting the current time in
+  different units
+
+*/
+namespace timing {
+  // get the current time in nanoseconds
+  u64_t ns() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+      std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+  };
+
   // get the current time in milliseconds
-  inline U64 ms() {
+  u64_t ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::system_clock::now().time_since_epoch()
     ).count();
   };
 
   // get the current time in seconds
-  inline U64 s() {
+  u64_t s() {
     return std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+  };
+
+  // get the current time in minutes
+  u64_t min() {
+    return std::chrono::duration_cast<std::chrono::minutes>(
       std::chrono::system_clock::now().time_since_epoch()
     ).count();
   };
 };
 
 
-#endif
+#endif // __TIME__MODULE__

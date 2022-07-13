@@ -30,7 +30,7 @@ struct undo_t {
   u16_t halfmove_clock;
   hash_t hash;
 };
-
+ 
 
 class Board {
   public:
@@ -290,61 +290,57 @@ class Board {
       };
     };
 
+    template <color_t color>
     u64_t perft(int depth) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
       std::cout << "\tperft " << depth << " of " << std::endl;
       std::cout << "\t" << this->fen() << std::endl << std::endl;
       u64_t start = timing::ns();
       u64_t count = 0;
-      if (this->turn == color::white) {
-        auto moves = this->generate<legal, color::white>();
-        for (auto move : moves) {
-          u64_t local_start = timing::ns();
-          u64_t local_count = 0;
-          make(move);
-          local_count += perft(depth - 1, true);
-          unmake();
-          u64_t local_end = timing::ns();
-          std::cout << "\t" << move::to_string(move) << ": \t" << local_count << "\t\tMNps:\t" << 1000 * ((float)local_count) / ((float)(local_end - local_start)) << std::endl;
-          count += local_count;
-        };
-      } else {
-        auto moves = this->generate<legal, color::black>();
-        for (auto move : moves) {
-          u64_t local_start = timing::ns();
-          u64_t local_count = 0;
-          make(move);
-          local_count += perft(depth - 1, true);
-          unmake();
-          u64_t local_end = timing::ns();
-          std::cout << "\t" << move::to_string(move) << ": \t" << local_count << "\t\tMNps:\t" << 1000 * ((float)local_count) / ((float)(local_end - local_start)) << std::endl;
-          count += local_count;
-        };
+      auto moves = this->generate<legal, color>();
+      for (auto move : moves) {
+        u64_t local_start = timing::ns();
+        u64_t local_count = 0;
+        make(move);
+        local_count += perft<opponent>(depth - 1, true);
+        unmake();
+        u64_t local_end = timing::ns();
+        std::cout << "\t" << move::to_string(move) << ": \t" << local_count << "\t\tMNps:\t" << 1000 * ((float)local_count) / ((float)(local_end - local_start)) << std::endl;
+        count += local_count;
       };
-      
       u64_t end = timing::ns();
       std::cout << std::endl << "\tTotal:\t" << count << "\t\tMNps:\t" << 1000 * ((float)count) / ((float)(end - start))  << std::endl;
       return count;
     };
 
+    template <color_t color>
     u64_t perft(int depth, bool count_only) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
       if (depth == 0) return 1;
       u64_t count = 0;
-      if (this->turn == color::white) {
-        auto moves = this->generate<legal, color::white>();
-        for (auto move : moves) {
-          make(move);
-          count += perft(depth - 1, true);
-          unmake();
-        };
-      } else {
-        auto moves = this->generate<legal, color::black>();
-        for (auto move : moves) {
-          make(move);
-          count += perft(depth - 1, true);
-          unmake();
-        };
+      auto moves = this->generate<legal, color>();
+      for (auto move : moves) {
+        make(move);
+        count += perft<opponent>(depth - 1, true);
+        unmake();
       };
       return count;
+    };
+
+    u64_t perft(int depth) {
+      if (this->turn == color::white) {
+        return perft<color::white>(depth);
+      } else {
+        return perft<color::black>(depth);
+      };
+    };
+
+    u64_t perft(int depth, bool count_only) {
+      if (this->turn == color::white) {
+        return perft<color::white>(depth, count_only);
+      } else {
+        return perft<color::black>(depth, count_only);
+      };
     };
 
   private:

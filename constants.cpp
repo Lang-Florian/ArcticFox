@@ -3,77 +3,70 @@
 #endif
 
 
-#include "string"
-
-
 #ifndef __CONSTANTS__MODULE__
 #define __CONSTANTS__MODULE__
 
 
-// most used types
-#define string_t std::string
-
-#define U8 unsigned char
-#define U16 unsigned short
-#define U32 unsigned int
-#define U64 unsigned long long
-
-#define square_t unsigned char
-#define color_t unsigned char
-#define piece_t unsigned char
-#define bitboard_t unsigned long long
-#define castling_t unsigned char
-#define move_t unsigned int
-#define hash_t unsigned short
-#define outcome_t unsigned char
-#define eval_t unsigned long long
+#include <string>
 
 
-// some bit manipulation macros
+/*
+
+  all the important types and constants and some useful "macro-type" functions
+
+*/
+
+
+// important types
+#define u8_t unsigned char
+#define u16_t unsigned short
+#define u32_t unsigned int
+#define u64_t unsigned long long
+
+#define bitboard_t u64_t
+#define castling_t u8_t
+#define color_t u8_t
+#define gen_t u8_t
+#define hash_t u64_t
+#define move_t u32_t
+#define outcome_t u8_t
+#define piece_t u8_t
+#define square_t u8_t
+
+
+// some bit manipulations
 #define bitboard(square) (1ULL << (square))
-
 #define popcount(bitboard) __builtin_popcountll(bitboard)
-
 #define get_lsb(bitboard) __builtin_ctzll(bitboard)
-
-inline square_t pop_lsb(bitboard_t& bitboard) {
+square_t pop_lsb(bitboard_t& bitboard) {
   square_t lsb = get_lsb(bitboard);
-  bitboard &= bitboard - 1;
+  bitboard &= ~(1ULL << lsb);
   return lsb;
 };
-
 #define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
 #define clear_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
 #define get_bit(bitboard, square) ((bitboard) & (1ULL << (square)))
-
-inline bitboard_t pop_bit(bitboard_t& bitboard, square_t square) {
+bitboard_t pop_bit(bitboard_t& bitboard, square_t square) {
   bitboard_t bit = get_bit(bitboard, square);
   bitboard &= ~(1ULL << square);
   return bit;
 };
 
+#define push_offset(turn) (8 - 16 * (turn == color::white))
 
-// initialize color definitions
-namespace COLOR {
+// color constants
+namespace color {
   enum : color_t {
-    none =  0b00,
-    white = 0b01,
-    black = 0b10,
-    both =  0b11,
+    white = 0b00,
+    black = 0b01,
+    none =  0b10,
   };
 
-  static const color_t opponent_array[] = {
-    none,
-    black,
-    white,
-    both,
+  color_t opponent(color_t color) {
+    return color ^ 0b1;
   };
 
-  inline color_t opponent(color_t color) {
-    return opponent_array[color];
-  };
-
-  inline color_t from_char(char c) {
+  color_t from_char(char c) {
     switch (c) {
       case 'w': return white;
       case 'b': return black;
@@ -81,29 +74,37 @@ namespace COLOR {
     };
   };
 
-  static const string_t string_array[] = {"", "w", "b", ""};
+  std::string to_string(color_t color) {
+    switch (color) {
+      case white: return "w";
+      case black: return "b";
+      default:    return "";
+    };
+  };
 
-  inline string_t to_string(color_t color) {
-    return string_array[color];
+  namespace compiletime {
+    constexpr color_t opponent(color_t color) {
+      return color ^ 0b1;
+    };
   };
 };
 
 
-// initialize square definitions
-namespace SQUARE {
+// square constants
+namespace square {
   enum : square_t {
-    A8, B8, C8, D8, E8, F8, G8, H8,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A3, B3, C3, D3, E3, F3, G3, H3,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A1, B1, C1, D1, E1, F1, G1, H1,
+    a8, b8, c8, d8, e8, f8, g8, h8,
+    a7, b7, c7, d7, e7, f7, g7, h7,
+    a6, b6, c6, d6, e6, f6, g6, h6,
+    a5, b5, c5, d5, e5, f5, g5, h5,
+    a4, b4, c4, d4, e4, f4, g4, h4,
+    a3, b3, c3, d3, e3, f3, g3, h3,
+    a2, b2, c2, d2, e2, f2, g2, h2,
+    a1, b1, c1, d1, e1, f1, g1, h1,
     none,
   };
 
-  static const string_t string_array[] = {
+  const std::string labels[] = {
     "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
     "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
     "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
@@ -114,75 +115,68 @@ namespace SQUARE {
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
     "-",
   };
-
-  inline string_t to_string(square_t square) {
-    return string_array[square];
+  
+  std::string to_string(square_t square) {
+    return labels[square];
   };
 
-  inline color_t color(square_t square) {
-    return (square + (square >> 3)) & 0b1;
+  color_t color(square_t square) {
+    switch ((square + (square >> 3)) & 0b1) {
+      case 0:  return color::white;
+      case 1:  return color::black;
+      default: return color::none;
+    };
   };
 };
 
 
-// initialize piece definitions
-namespace PIECE{
+// piece constants
+namespace piece{
   enum : piece_t {
-    none =         0b00000,
-    pawn =         0b00001,
-    knight =       0b00010,
-    bishop =       0b00011,
-    rook =         0b00100,
-    queen =        0b00101,
-    king =         0b00110,
-    NONE =         0b00111,
-    white =        0b01000,
-    white_pawn =   0b01001,
-    white_knight = 0b01010,
-    white_bishop = 0b01011,
-    white_rook =   0b01100,
-    white_queen =  0b01101,
-    white_king =   0b01110,
-    WHITE =        0b01111,
-    black =        0b10000,
-    black_pawn =   0b10001,
-    black_knight = 0b10010,
-    black_bishop = 0b10011,
-    black_rook =   0b10100,
+    white =        0b00000,
+    white_pawn =   0b00100,
+    white_knight = 0b01000,
+    white_bishop = 0b01100,
+    white_rook =   0b10000,
+    white_queen =  0b10100,
+    white_king =   0b11000,
+    WHITE =        0b11100,
+
+    black =        0b00001,
+    black_pawn =   0b00101,
+    black_knight = 0b01001,
+    black_bishop = 0b01101,
+    black_rook =   0b10001,
     black_queen =  0b10101,
-    black_king =   0b10110,
-    BLACK =        0b10111,
-    both =         0b11000,
-    both_pawn =    0b11001,
-    both_knight =  0b11010,
-    both_bishop =  0b11011,
-    both_rook =    0b11100,
-    both_queen =   0b11101,
-    both_king =    0b11110,
-    BOTH =         0b11111,
+    black_king =   0b11001,
+    BLACK =        0b11101,
+
+    none =         0b00010,
+    pawn =         0b00110,
+    knight =       0b01010,
+    bishop =       0b01110,
+    rook =         0b10010,
+    queen =        0b10110,
+    king =         0b11010,
+    NONE =         0b11110,
   };
 
-  inline color_t color(piece_t piece) {
-    return (piece >> 3) & 0b11;
+  int bishop_i = 0;
+  int rook_i = 1;
+
+  color_t color(piece_t piece) {
+    return piece & 0b11;
   };
 
-  inline piece_t type(piece_t piece) {
-    return piece & 0b111;
-  };
-
-  inline piece_t piece(color_t color, piece_t piece_type) {
-    return (color << 3) | piece_type;
-  };
-
-  inline piece_t piece_color(piece_t piece) {
-    return piece & 0b11000;
+  piece_t type(piece_t piece) {
+    return (piece & 0b11100) | 0b00010;
   };
   
-  inline piece_t to_color(piece_t piece, color_t color) {
-    return (piece & 0b111) | (color << 3);
+  piece_t to_color(piece_t piece, color_t color) {
+    return (piece & 0b11100) | color;
   };
 
-  inline piece_t from_char(char c) {
+  piece_t from_char(char c) {
     switch (c) {
       case 'P': return white_pawn;
       case 'N': return white_knight;
@@ -200,138 +194,155 @@ namespace PIECE{
     };
   };
 
-  static const string_t unicode_array[] = {
-    " ", "\u265F", "\u265E", "\u265D", "\u265C", "\u265B", "\u265A", " ",
+  std::string unicode(piece_t piece) {
+    switch (type(piece)) {
+      case pawn:   return "\u265F";
+      case knight: return "\u265E";
+      case bishop: return "\u265D";
+      case rook:   return "\u265C";
+      case queen:  return "\u265B";
+      case king:   return "\u265A";
+      default: return " ";
+    };
   };
 
-  inline string_t unicode(piece_t piece) {
-    return unicode_array[type(piece)];
+  std::string to_string(piece_t piece) {
+    switch (piece) {
+      case white_pawn:   return "P";
+      case white_knight: return "N";
+      case white_bishop: return "B";
+      case white_rook:   return "R";
+      case white_queen:  return "Q";
+      case white_king:   return "K";
+      case black_pawn:   return "p";
+      case black_knight: return "n";
+      case black_bishop: return "b";
+      case black_rook:   return "r";
+      case black_queen:  return "q";
+      case black_king:   return "k";
+      default:           return " ";
+    };
   };
 
-  static const string_t string_array[] = {
-    " ", " ", " ", " ", " ", " ", " ", " ",
-    " ", "P", "N", "B", "R", "Q", "K", " ",
-    " ", "p", "n", "b", "r", "q", "k", " ",
-    " ", " ", " ", " ", " ", " ", " ", " ",
+  std::string promotion_string(piece_t piece) {
+    switch (type(piece)) {
+      case knight: return "n";
+      case bishop: return "b";
+      case rook:   return "r";
+      case queen:  return "q";
+      default: return "";
+    };
   };
 
-  inline string_t to_string(piece_t piece) {
-    return string_array[piece];
-  };
-
-  static const string_t promotion_string_array[] = {
-    "", "p", "n", "b", "r", "q", "k", "", 
-  };
-
-  inline string_t promotion_string(piece_t piece) {
-    return promotion_string_array[type(piece)];
+  namespace compiletime {
+    constexpr piece_t to_color(piece_t piece, color_t color) {
+      return (piece & 0b11100) | color;
+    };
   };
 };
 
 
-// initialize some fen position definitions
-namespace FEN {
-  static const string_t initial = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-  static const string_t kiwipete = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-  static const string_t pos3 = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
-  static const string_t pos4 = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
-  static const string_t pos5 = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-  static const string_t pos6 = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
+// fen constants
+namespace fen {
+  static const std::string starting = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  static const std::string pos2 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+  static const std::string pos3 = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+  static const std::string pos4 = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+  static const std::string pos5 = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+  static const std::string pos6 = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
 };
 
 
-// initialize terminal escape characters
-namespace ESCAPE {
-  inline string_t escape(square_t square, piece_t piece) {
-    string_t string = "";
-    if ((square + (square >> 3)) & 0b1) {
-      // black background
-      string += "\033[48;5;88m";
-    } else {
-      // white background
-      string += "\033[48;5;244m";
-    }
-    if (PIECE::color(piece) == COLOR::white) {
+// escape constants
+namespace escape {
+  std::string escape(piece_t piece, square_t square) {
+    std::string string = "";
+    if (piece::color(piece) == color::white) {
       // white foreground
       string += "\033[38;5;255m";
-    } else if (PIECE::color(piece) == COLOR::black) {
-      // black foreground
-      string += "\033[38;5;232m";
     } else {
       // black foreground
       string += "\033[38;5;232m";
-    }
+    };
+    if (square::color(square) == color::white) {
+      // white background
+      string += "\033[48;5;244m";
+    } else {
+      // black background
+      string += "\033[48;5;88m";
+    };
     return string;
   };
 
-  inline string_t escape() {
+  std::string escape() {
     return "\033[0m";
   };
 };
 
 
-// initialize some bitboard definitions
-namespace BITBOARD {
+// bitboard constants
+namespace bitboard {
   enum : bitboard_t {
-    A8 = bitboard(SQUARE::A8), B8 = bitboard(SQUARE::B8), C8 = bitboard(SQUARE::C8), D8 = bitboard(SQUARE::D8), E8 = bitboard(SQUARE::E8), F8 = bitboard(SQUARE::F8), G8 = bitboard(SQUARE::G8), H8 = bitboard(SQUARE::H8),
-    A7 = bitboard(SQUARE::A7), B7 = bitboard(SQUARE::B7), C7 = bitboard(SQUARE::C7), D7 = bitboard(SQUARE::D7), E7 = bitboard(SQUARE::E7), F7 = bitboard(SQUARE::F7), G7 = bitboard(SQUARE::G7), H7 = bitboard(SQUARE::H7),
-    A6 = bitboard(SQUARE::A6), B6 = bitboard(SQUARE::B6), C6 = bitboard(SQUARE::C6), D6 = bitboard(SQUARE::D6), E6 = bitboard(SQUARE::E6), F6 = bitboard(SQUARE::F6), G6 = bitboard(SQUARE::G6), H6 = bitboard(SQUARE::H6),
-    A5 = bitboard(SQUARE::A5), B5 = bitboard(SQUARE::B5), C5 = bitboard(SQUARE::C5), D5 = bitboard(SQUARE::D5), E5 = bitboard(SQUARE::E5), F5 = bitboard(SQUARE::F5), G5 = bitboard(SQUARE::G5), H5 = bitboard(SQUARE::H5),
-    A4 = bitboard(SQUARE::A4), B4 = bitboard(SQUARE::B4), C4 = bitboard(SQUARE::C4), D4 = bitboard(SQUARE::D4), E4 = bitboard(SQUARE::E4), F4 = bitboard(SQUARE::F4), G4 = bitboard(SQUARE::G4), H4 = bitboard(SQUARE::H4),
-    A3 = bitboard(SQUARE::A3), B3 = bitboard(SQUARE::B3), C3 = bitboard(SQUARE::C3), D3 = bitboard(SQUARE::D3), E3 = bitboard(SQUARE::E3), F3 = bitboard(SQUARE::F3), G3 = bitboard(SQUARE::G3), H3 = bitboard(SQUARE::H3),
-    A2 = bitboard(SQUARE::A2), B2 = bitboard(SQUARE::B2), C2 = bitboard(SQUARE::C2), D2 = bitboard(SQUARE::D2), E2 = bitboard(SQUARE::E2), F2 = bitboard(SQUARE::F2), G2 = bitboard(SQUARE::G2), H2 = bitboard(SQUARE::H2),
-    A1 = bitboard(SQUARE::A1), B1 = bitboard(SQUARE::B1), C1 = bitboard(SQUARE::C1), D1 = bitboard(SQUARE::D1), E1 = bitboard(SQUARE::E1), F1 = bitboard(SQUARE::F1), G1 = bitboard(SQUARE::G1), H1 = bitboard(SQUARE::H1),
+    a8 = bitboard(square::a8), b8 = bitboard(square::b8), c8 = bitboard(square::c8), d8 = bitboard(square::d8), e8 = bitboard(square::e8), f8 = bitboard(square::f8), g8 = bitboard(square::g8), h8 = bitboard(square::h8),
+    a7 = bitboard(square::a7), b7 = bitboard(square::b7), c7 = bitboard(square::c7), d7 = bitboard(square::d7), e7 = bitboard(square::e7), f7 = bitboard(square::f7), g7 = bitboard(square::g7), h7 = bitboard(square::h7),
+    a6 = bitboard(square::a6), b6 = bitboard(square::b6), c6 = bitboard(square::c6), d6 = bitboard(square::d6), e6 = bitboard(square::e6), f6 = bitboard(square::f6), g6 = bitboard(square::g6), h6 = bitboard(square::h6),
+    a5 = bitboard(square::a5), b5 = bitboard(square::b5), c5 = bitboard(square::c5), d5 = bitboard(square::d5), e5 = bitboard(square::e5), f5 = bitboard(square::f5), g5 = bitboard(square::g5), h5 = bitboard(square::h5),
+    a4 = bitboard(square::a4), b4 = bitboard(square::b4), c4 = bitboard(square::c4), d4 = bitboard(square::d4), e4 = bitboard(square::e4), f4 = bitboard(square::f4), g4 = bitboard(square::g4), h4 = bitboard(square::h4),
+    a3 = bitboard(square::a3), b3 = bitboard(square::b3), c3 = bitboard(square::c3), d3 = bitboard(square::d3), e3 = bitboard(square::e3), f3 = bitboard(square::f3), g3 = bitboard(square::g3), h3 = bitboard(square::h3),
+    a2 = bitboard(square::a2), b2 = bitboard(square::b2), c2 = bitboard(square::c2), d2 = bitboard(square::d2), e2 = bitboard(square::e2), f2 = bitboard(square::f2), g2 = bitboard(square::g2), h2 = bitboard(square::h2),
+    a1 = bitboard(square::a1), b1 = bitboard(square::b1), c1 = bitboard(square::c1), d1 = bitboard(square::d1), e1 = bitboard(square::e1), f1 = bitboard(square::f1), g1 = bitboard(square::g1), h1 = bitboard(square::h1),
     none = 0ULL, full = 0xFFFFFFFFFFFFFFFFULL,
   };
 
-  static const bitboard_t file_A = 0x0101010101010101ULL;
-  static const bitboard_t file_B = 0x0202020202020202ULL;
-  static const bitboard_t file_C = 0x0404040404040404ULL;
-  static const bitboard_t file_D = 0x0808080808080808ULL;
-  static const bitboard_t file_E = 0x1010101010101010ULL;
-  static const bitboard_t file_F = 0x2020202020202020ULL;
-  static const bitboard_t file_G = 0x4040404040404040ULL;
-  static const bitboard_t file_H = 0x8080808080808080ULL;
-
-  static const bitboard_t rank_1 = 0xFF00000000000000ULL;
-  static const bitboard_t rank_2 = 0x00FF000000000000ULL;
-  static const bitboard_t rank_3 = 0x0000FF0000000000ULL;
-  static const bitboard_t rank_4 = 0x000000FF00000000ULL;
-  static const bitboard_t rank_5 = 0x00000000FF000000ULL;
-  static const bitboard_t rank_6 = 0x0000000000FF0000ULL;
-  static const bitboard_t rank_7 = 0x000000000000FF00ULL;
-  static const bitboard_t rank_8 = 0x00000000000000FFULL;
-
-  static const bitboard_t white_side = rank_1 | rank_2 | rank_3 | rank_4;
-  static const bitboard_t black_side = rank_5 | rank_6 | rank_7 | rank_8;
-  static const bitboard_t queen_side = file_A | file_B | file_C | file_D;
-  static const bitboard_t king_side = file_E | file_F | file_G | file_H;
-  static const bitboard_t center = D4 | E4 | D5 | E5;
-  static const bitboard_t white_squares = A8 |  0 | C8 |  0 | E8 |  0 | G8 |  0 | \
-                                           0 | B7 |  0 | D7 |  0 | F7 |  0 | H7 | \
-                                          A6 |  0 | C6 |  0 | E6 |  0 | G6 |  0 | \
-                                           0 | B5 |  0 | D5 |  0 | F5 |  0 | H5 | \
-                                          A4 |  0 | C4 |  0 | E4 |  0 | G4 |  0 | \
-                                           0 | B3 |  0 | D3 |  0 | F3 |  0 | H3 | \
-                                          A2 |  0 | C2 |  0 | E2 |  0 | G2 |  0 | \
-                                           0 | B1 |  0 | D1 |  0 | F1 |  0 | H1;
-  static const bitboard_t black_squares =  0 | B8 |  0 | D8 |  0 | F8 |  0 | H8 | \
-                                          A7 |  0 | C7 |  0 | E7 |  0 | G7 |  0 | \
-                                           0 | B6 |  0 | D6 |  0 | F6 |  0 | H6 | \
-                                          A5 |  0 | C5 |  0 | E5 |  0 | G5 |  0 | \
-                                           0 | B4 |  0 | D4 |  0 | F4 |  0 | H4 | \
-                                          A3 |  0 | C3 |  0 | E3 |  0 | G3 |  0 | \
-                                           0 | B2 |  0 | D2 |  0 | F2 |  0 | H2 | \
-                                          A1 |  0 | C1 |  0 | E1 |  0 | G1 |  0;
+  const bitboard_t file_a = 0x0101010101010101ULL;
+  const bitboard_t file_b = 0x0202020202020202ULL;
+  const bitboard_t file_c = 0x0404040404040404ULL;
+  const bitboard_t file_d = 0x0808080808080808ULL;
+  const bitboard_t file_e = 0x1010101010101010ULL;
+  const bitboard_t file_f = 0x2020202020202020ULL;
+  const bitboard_t file_g = 0x4040404040404040ULL;
+  const bitboard_t file_h = 0x8080808080808080ULL;
   
-  inline string_t to_string(bitboard_t bitboard) {
-    string_t string = "";
+  const bitboard_t rank_1 = 0xFF00000000000000ULL;
+  const bitboard_t rank_2 = 0x00FF000000000000ULL;
+  const bitboard_t rank_3 = 0x0000FF0000000000ULL;
+  const bitboard_t rank_4 = 0x000000FF00000000ULL;
+  const bitboard_t rank_5 = 0x00000000FF000000ULL;
+  const bitboard_t rank_6 = 0x0000000000FF0000ULL;
+  const bitboard_t rank_7 = 0x000000000000FF00ULL;
+  const bitboard_t rank_8 = 0x00000000000000FFULL;
+
+  const bitboard_t white_side = rank_1 | rank_2 | rank_3 | rank_4;
+  const bitboard_t black_side = rank_5 | rank_6 | rank_7 | rank_8;
+  const bitboard_t queen_side = file_a | file_b | file_c | file_d;
+  const bitboard_t king_side =  file_e | file_f | file_g | file_h;
+  const bitboard_t center = d4 | e4 | d5 | e5;
+
+  const bitboard_t white_squares = a8 |  0 | c8 |  0 | e8 |  0 | g8 |  0 | \
+                                    0 | b7 |  0 | d7 |  0 | f7 |  0 | h7 | \
+                                   a6 |  0 | c6 |  0 | e6 |  0 | g6 |  0 | \
+                                    0 | b5 |  0 | d5 |  0 | f5 |  0 | h5 | \
+                                   a4 |  0 | c4 |  0 | e4 |  0 | g4 |  0 | \
+                                    0 | b3 |  0 | d3 |  0 | f3 |  0 | h3 | \
+                                   a2 |  0 | c2 |  0 | e2 |  0 | g2 |  0 | \
+                                    0 | b1 |  0 | d1 |  0 | f1 |  0 | h1;
+  const bitboard_t black_squares =  0 | b8 |  0 | d8 |  0 | f8 |  0 | h8 | \
+                                   a7 |  0 | c7 |  0 | e7 |  0 | g7 |  0 | \
+                                    0 | b6 |  0 | d6 |  0 | f6 |  0 | h6 | \
+                                   a5 |  0 | c5 |  0 | e5 |  0 | g5 |  0 | \
+                                    0 | b4 |  0 | d4 |  0 | f4 |  0 | h4 | \
+                                   a3 |  0 | c3 |  0 | e3 |  0 | g3 |  0 | \
+                                    0 | b2 |  0 | d2 |  0 | f2 |  0 | h2 | \
+                                   a1 |  0 | c1 |  0 | e1 |  0 | g1 |  0;
+  
+  std::string to_string(bitboard_t bitboard) {
+    std::string string = "";
     for (square_t square = 0; square < 64; square++) {
       if (square % 8 == 0 && square != 0) string += "\n";
       if (square % 8 == 0) string +=  " " + std::to_string(8 - square / 8) + " ";
-      string += ESCAPE::escape(square, PIECE::black);
+      string += escape::escape(square, piece::black);
       string += get_bit(bitboard, square) ? " X " : "   ";
-      string += ESCAPE::escape();
+      string += escape::escape();
     };
     string += "\n    A  B  C  D  E  F  G  H\n\n";
     string += "  BOARD: " + std::to_string(bitboard);
@@ -340,21 +351,21 @@ namespace BITBOARD {
 };
 
 
-// initialize castling definitions
-namespace CASTLING {
+// castling constants
+namespace castling {
   enum : castling_t {
-    none =             0b0000,
-    white_king =       0b0001,
-    white_queen =      0b0010,
-    black_king =       0b0100,
-    black_queen =      0b1000,
-    white =            0b0011,
-    black =            0b1100,
-    king =             0b0101,
-    queen =            0b1010,
+    none =        0b0000,
+    white_king =  0b0001,
+    white_queen = 0b0010,
+    black_king =  0b0100,
+    black_queen = 0b1000,
+    white =       0b0011,
+    black =       0b1100,
+    king =        0b0101,
+    queen =       0b1010,
   };
 
-  inline castling_t from_char(char c) {
+  castling_t from_char(char c) {
     switch (c) {
       case 'K': return white_king;
       case 'Q': return white_queen;
@@ -364,52 +375,152 @@ namespace CASTLING {
     };
   };
 
-  inline string_t to_string(castling_t castling) {
-    string_t string = "";
+  std::string to_string(castling_t castling) {
+    std::string string = "";
     if (castling & white_king)  string += "K";
     if (castling & white_queen) string += "Q";
     if (castling & black_king)  string += "k";
     if (castling & black_queen) string += "q";
-    if (string.empty()) string = "-";
+    if (string.empty())         string += "-";
     return string;
   };
   
-  bitboard_t white_king_attack_mask =  BITBOARD::E1 | BITBOARD::F1 | BITBOARD::G1;
-  bitboard_t white_queen_attack_mask = BITBOARD::C1 | BITBOARD::D1 | BITBOARD::E1;
-  bitboard_t black_king_attack_mask =  BITBOARD::E8 | BITBOARD::F8 | BITBOARD::G8;
-  bitboard_t black_queen_attack_mask = BITBOARD::C8 | BITBOARD::D8 | BITBOARD::E8;
+  const bitboard_t white_king_attack_mask =  bitboard::e1 | bitboard::f1 | bitboard::g1;
+  const bitboard_t white_queen_attack_mask = bitboard::c1 | bitboard::d1 | bitboard::e1;
+  const bitboard_t black_king_attack_mask =  bitboard::e8 | bitboard::f8 | bitboard::g8;
+  const bitboard_t black_queen_attack_mask = bitboard::c8 | bitboard::d8 | bitboard::e8;
 
-  bitboard_t white_king_piece_mask =  BITBOARD::F1 | BITBOARD::G1;
-  bitboard_t white_queen_piece_mask = BITBOARD::B1 | BITBOARD::C1 | BITBOARD::D1;
-  bitboard_t black_king_piece_mask =  BITBOARD::F8 | BITBOARD::G8;
-  bitboard_t black_queen_piece_mask = BITBOARD::B8 | BITBOARD::C8 | BITBOARD::D8;
+  const bitboard_t white_king_piece_mask =  bitboard::f1 | bitboard::g1;
+  const bitboard_t white_queen_piece_mask = bitboard::b1 | bitboard::c1 | bitboard::d1;
+  const bitboard_t black_king_piece_mask =  bitboard::f8 | bitboard::g8;
+  const bitboard_t black_queen_piece_mask = bitboard::b8 | bitboard::c8 | bitboard::d8;
 };
 
 
-// initialize outcome definitions
-namespace OUTCOME {
+// outcome constants
+namespace outcome {
   enum : outcome_t {
-    none =                  0b00000000,
+    none =                  0b00000010,
 
-    checkmate =             0b00000100,
-    checkmate_white =       0b00000101,
-    checkmate_black =       0b00000110,
+    checkmate_white =       0b00000100,
+    checkmate_black =       0b00000101,
 
-    draw =                  0b00001000,
-    stalemate =             0b00011011,
-    insufficient_material = 0b00101011,
-    fifty_move_rule =       0b01001011,
-    threefold_repetition =  0b10001011,
+    draw =                  0b00001010,
+    stalemate =             0b00011010,
+    insufficient_material = 0b00101010,
+    fifty_move_rule =       0b01001010,
+    threefold_repetition =  0b10001010,
   };
 
-  inline outcome_t checkmate_for(color_t color) {
-    return checkmate | color;
+  outcome_t checkmate_for(color_t color) {
+    return 0b00000100 | color;
   };
 
-  inline color_t winner(outcome_t outcome) {
+  color_t winner(outcome_t outcome) {
     return outcome & 0b11;
   };
 };
 
 
-#endif
+/* some move definitions and macros
+  
+  MOVE
+
+  0000 0000 0000 0000 0000 0000 0011 1111     from
+  0000 0000 0000 0000 0000 1111 1100 0000     to
+  0000 0000 0000 0001 1111 0000 0000 0000     moved_piece
+  0000 0000 0011 1110 0000 0000 0000 0000     target_piece
+  0000 0111 1100 0000 0000 0000 0000 0000     captured_piece
+  0000 1000 0000 0000 0000 0000 0000 0000     double_pawn_push
+  0001 0000 0000 0000 0000 0000 0000 0000     enpassant
+  0010 0000 0000 0000 0000 0000 0000 0000     castling
+  0100 0000 0000 0000 0000 0000 0000 0000     promotion
+  1000 0000 0000 0000 0000 0000 0000 0000     capture
+
+*/
+namespace move {
+  // encode a move
+  move_t move(square_t from,
+              square_t to,
+              piece_t moved_piece,
+              piece_t target_piece=piece::none,
+              piece_t captured_piece=piece::none,
+              bool double_pawn_push=false,
+              bool enpassant=false,
+              bool castling=false) {
+    return ((from) << 0) |
+           ((to) << 6) |
+           ((moved_piece) << 12) |
+           ((target_piece) << 17) |
+           ((captured_piece) << 22) |
+           ((double_pawn_push) << 27) |
+           ((enpassant) << 28) |
+           ((castling) << 29) |
+           ((target_piece != piece::none) << 30) |
+           ((captured_piece != piece::none) << 31);
+  };
+
+  // decode a move
+  square_t from(move_t move) {
+    return (move >> 0) & 0b111111;
+  };
+
+  square_t to(move_t move) {
+    return (move >> 6) & 0b111111;
+  };
+
+  piece_t moved_piece(move_t move) {
+    return (move >> 12) & 0b11111;
+  };
+
+  piece_t target_piece(move_t move) {
+    return (move >> 17) & 0b11111;
+  };
+
+  piece_t captured_piece(move_t move) {
+    return (move >> 22) & 0b11111;
+  };
+
+  bool double_pawn_push(move_t move) {
+    return (move >> 27) & 0b1;
+  };
+
+  bool enpassant(move_t move) {
+    return (move >> 28) & 0b1;
+  };
+
+  bool castling(move_t move) {
+    return (move >> 29) & 0b1;
+  };
+
+  bool promotion(move_t move) {
+    return (move >> 30) & 0b1;
+  };
+  
+  bool capture(move_t move) {
+    return (move >> 31) & 0b1;
+  };
+
+  std::string to_string(move_t move) {
+    return square::to_string(from(move)) + square::to_string(to(move)) + piece::promotion_string(target_piece(move));
+  };
+
+  castling_t removed_castling(move_t move) {
+    return (
+      (from(move) == square::e1 || from(move) == square::h1 || to(move) == square::h1) << 0 |
+      (from(move) == square::e1 || from(move) == square::a1 || to(move) == square::a1) << 1 |
+      (from(move) == square::e8 || from(move) == square::h8 || to(move) == square::h8) << 2 |
+      (from(move) == square::e8 || from(move) == square::a8 || to(move) == square::a8) << 3
+    );
+  };
+};
+
+
+// some move generation constants
+enum : gen_t {
+  legal,
+  evasion,
+};
+
+
+#endif // __CONSTANTS__MODULE__

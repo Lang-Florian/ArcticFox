@@ -16,7 +16,6 @@
         "-march=native",
         "-flto",
         "-fno-signed-zeros",
-        "-frename-registers",
         "-funroll-loops"
       ],
       "options": {

@@ -317,6 +317,7 @@ class Board {
     u64_t perft(int depth, bool count_only) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       if (depth == 0) return 1;
+      if (depth == 1) return this->generate<legal, color>().size();
       u64_t count = 0;
       auto moves = this->generate<legal, color>();
       for (auto move : moves) {
@@ -379,6 +380,14 @@ class Board {
       bool castling = (piece::type(moved_piece) == piece::king) && (((from - to) == 2) || ((from - to) == -2));
       return move::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling);
     };
+
+
+
+
+
+
+
+
 
     template <gen_t gen, color_t color>
     Stack<move_t, MAX_MOVE_LENGTH> generate() {

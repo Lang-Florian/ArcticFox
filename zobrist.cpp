@@ -11,6 +11,7 @@
 
 #include "constants.cpp"
 #include "random.cpp"
+#include "types.cpp"
 
 
 /*
@@ -18,9 +19,11 @@
   a class for the zobrist hash
 
 */
+
+
 class Zobrist {
   private:
-    std::array<std::array<hash_t, 64>, 24> piece{0ULL};
+    std::array<std::array<hash_t, 64>, 32> piece{0ULL};
     std::array<hash_t, 16> castling{0ULL};
     std::array<hash_t, 65> enpassant{0ULL};
     hash_t turn = 0ULL;
@@ -78,12 +81,11 @@ class Zobrist {
       this->hash = 0ULL;
     };
 
-    // update hash with value
-    void update(hash_t value) {
+    // set hash to a given value
+    void set(hash_t value) {
       this->hash = value;
     };
 };
-
 
 
 #endif // __ZOBRIST__MODULE__

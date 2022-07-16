@@ -9,7 +9,7 @@
 
 #include <chrono>
 
-#include "constants.cpp"
+#include "types.cpp"
 
 
 /*
@@ -18,30 +18,39 @@
   different units
 
 */
+
+
 namespace timing {
   // get the current time in nanoseconds
-  u64_t ns() {
+  u64_t nanoseconds() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
       std::chrono::system_clock::now().time_since_epoch()
     ).count();
   };
 
+  // get the current time in microseconds
+  u64_t microseconds() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+  };
+
   // get the current time in milliseconds
-  u64_t ms() {
+  u64_t milliseconds() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::system_clock::now().time_since_epoch()
     ).count();
   };
 
   // get the current time in seconds
-  u64_t s() {
+  u64_t seconds() {
     return std::chrono::duration_cast<std::chrono::seconds>(
       std::chrono::system_clock::now().time_since_epoch()
     ).count();
   };
 
   // get the current time in minutes
-  u64_t min() {
+  u64_t minutes() {
     return std::chrono::duration_cast<std::chrono::minutes>(
       std::chrono::system_clock::now().time_since_epoch()
     ).count();

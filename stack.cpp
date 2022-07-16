@@ -11,7 +11,7 @@
 
 
 /*
-  
+
   a class for a stack of elements
   up to a maximum size of MAX_SIZE
 
@@ -19,6 +19,8 @@
   and has important functions for manipulating the stack
 
 */
+
+
 template <typename T, int MAX_SIZE>
 class Stack {
   private:
@@ -58,40 +60,20 @@ class Stack {
       return this->_size_;
     };
 
+    bool empty() {
+      return this->_size_ == 0;
+    };
+
     void clear() {
       this->_size_ = 0;
-    };
-
-    int index(T value) {
-      return std::find(this->array, this->array + this->_size_, value) - this->array;
-    };
-
-    int index(bool (check)(T)) {
-      return std::find_if(this->array, this->array + this->_size_, check) - this->array;
     };
 
     int index(auto check) {
       return std::find_if(this->array, this->array + this->_size_, check) - this->array;
     };
 
-    bool contains(T value) {
-      return std::search(this->array, this->array + this->_size_, &value, &value + 1) != this->array + this->_size_;
-    };
-
-    bool contains(bool (check)(T)) {
-      return std::find_if(this->array, this->array + this->_size_, check) != this->array + this->_size_;
-    };
-
     bool contains(auto check) {
       return std::find_if(this->array, this->array + this->_size_, check) != this->array + this->_size_;
-    };
-
-    int count(T value) {
-      return std::count(this->array, this->array + this->_size_, value);
-    };
-
-    int count(bool (check)(T)) {
-      return std::count_if(this->array, this->array + this->_size_, check);
     };
 
     int count(auto check) {
@@ -100,10 +82,6 @@ class Stack {
 
     void sort() {
       std::stable_sort(this->array, this->array + this->_size_);
-    };
-    
-    void sort(bool (comparison)(T, T)) {
-      std::stable_sort(this->array, this->array + this->_size_, comparison);
     };
 
     void sort(auto comparison) {

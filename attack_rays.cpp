@@ -9,7 +9,8 @@
 
 #include <array>
 
-#include "constants.cpp"
+#include "macros.cpp"
+#include "types.cpp"
 
 
 /*
@@ -18,6 +19,8 @@
   at compile time
 
 */
+
+
 namespace attack_ray {
   constexpr std::array<bitboard_t, 64> bishop = {[]() constexpr {
     std::array<bitboard_t, 64> bishop{0ULL};

@@ -10,13 +10,20 @@
 #include <array>
 
 #include "constants.cpp"
+#include "macros.cpp"
+#include "types.cpp"
 
 
 /*
  
 	generate the magic table at compile time
- 
+
+	kudos to Volker Annuss who came up with the idea and generated the magic numbers:
+	https://www.talkchess.com/forum3/viewtopic.php?t=64790
+
 */
+
+
 namespace magic {
 	// generate the incomplete attack rays
   namespace incomplete_attack_ray {

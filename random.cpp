@@ -13,8 +13,11 @@
 /*
 
   a function for generating random numbers of any integer type
+  using the Mersenne Twister algorithm
 
 */
+
+
 namespace randomness {
   std::mt19937_64 generator (std::random_device{}());
 

@@ -10,14 +10,18 @@
 #include <array>
 
 #include "constants.cpp"
+#include "macros.cpp"
 #include "magic.cpp"
+#include "types.cpp"
 
 
 /*
- 
+
   generate attack tables for pawns, knights and kings at compile time
- 
+
 */
+
+
 namespace attack_tables {
   constexpr std::array<std::array<bitboard_t, 2>, 64> pawn = {[]() constexpr {
     std::array<std::array<bitboard_t, 2>, 64> pawn{bitboard::none};
@@ -61,10 +65,12 @@ namespace attack_tables {
 
 
 /*
- 
-  function to get the attack bitboard for a given piece and square
- 
+
+  functions to get the attack bitboard for a given piece and square
+
 */
+
+
 template <piece_t piece>
 bitboard_t attack(square_t square) {
   if constexpr (piece == piece::white_pawn) {

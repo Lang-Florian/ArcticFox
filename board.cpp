@@ -29,6 +29,17 @@ struct undo_t {
   u16_t halfmove_clock;
   hash_t hash;
 };
+
+
+struct perft_t {
+  move_t move;
+  u64_t count;
+  u64_t time;
+  
+  float mnps() {
+    return 1000 * (float)count / (float)time;
+  };
+};
  
 
 class Board {
@@ -132,7 +143,119 @@ class Board {
       return string;
     };
 
-    // make a move on the board
+    // push a uci move to the stack
+    void push_uci(std::string uci) {
+      this->make(this->from_uci(uci));
+    };
+
+    // get all the legal moves for the current turn
+    Stack<move_t, MAX_MOVE_LENGTH> legal_moves() {
+      if (this->turn == color::white) {
+        return this->generate<legal, color::white>();
+      } else {
+        return this->generate<legal, color::black>();
+      };
+    };
+
+    // do a perft
+    Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth, gen_t gen=legal) {
+      if (this->turn == color::white && gen == legal) {
+        return this->perft<legal, color::white>(depth);
+      } else if (this->turn == color::white && gen == capture) {
+        return this->perft<capture, color::white>(depth);
+      } else if (this->turn == color::black && gen == legal) {
+        return this->perft<legal, color::black>(depth);
+      }  else if (this->turn == color::black && gen == capture) {
+        return this->perft<capture, color::black>(depth);
+      };
+    };
+
+    // see if current position is check
+    bool is_check() {
+      square_t king_square = get_lsb(this->bitboards[piece::to_color(piece::king, this->turn)]);
+      return (
+        this->attackers(king_square) &
+        this->bitboards[color::opponent(this->turn)]
+      );
+    };
+
+    // get the outcome of the game
+    outcome_t outcome() {
+      return this->outcome(!this->legal_moves().empty());
+    };
+
+    // get the outcome of the game given you know if there are any legal moves
+    outcome_t outcome(bool has_legal_moves) {
+      if (!has_legal_moves) {
+        if (this->is_check()) {
+          return outcome::checkmate_for(color::opponent(this->turn));
+        } else {
+          return outcome::stalemate;
+        };
+      } else if (this->halfmove_clock >= 100) {
+        return outcome::fifty_move_rule;
+      } else if (this->history.count([this](undo_t undo) {return undo.hash == this->zobrist.hash;}) >= 2) {
+        return outcome::threefold_repetition;
+      };
+      return outcome::none;
+    };
+
+  private:
+    
+    // do a perft for a given color and generation type
+    template <gen_t gen, color_t color>
+    Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      Stack<perft_t, MAX_MOVE_LENGTH> perft_result;
+      auto moves = this->generate<legal, color>();
+      for (auto move : moves) {
+        u64_t start = timing::nanoseconds();
+        this->make(move);
+        u64_t count = perft<gen, opponent, true>(depth - 1);
+        this->unmake();
+        u64_t end = timing::nanoseconds();
+        perft_result.push(perft_t {move, count, end - start});
+      };
+      return perft_result;
+    };
+
+    // do a perft for a given color and generation type but only count
+    template <gen_t gen, color_t color, bool count_only>
+    u64_t perft(int depth) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      if (depth == 1) return this->generate<gen, color>().size();
+      u64_t count = 0;
+      auto moves = this->generate<legal, color>();
+      for (auto move : moves) {
+        this->make(move);
+        count += perft<gen, opponent, true>(depth - 1);
+        this->unmake();
+      };
+      return count;
+    };
+
+    // place a piece on a square
+    void place_piece(piece_t piece, square_t square) {
+      set_bit(this->bitboards[piece], square);
+      set_bit(this->bitboards[piece::type(piece)], square);
+      set_bit(this->bitboards[piece::color(piece)], square);
+      set_bit(this->bitboards[piece::none], square);
+      this->pieces[square] = piece;
+      this->zobrist.update_piece(piece, square);
+    };
+
+    // remove a piece from a square
+    void remove_piece(square_t square) {
+      piece_t piece = pieces[square];
+      clear_bit(this->bitboards[piece], square);
+      clear_bit(this->bitboards[piece::type(piece)], square);
+      clear_bit(this->bitboards[piece::color(piece)], square);
+      clear_bit(this->bitboards[piece::none], square);
+      this->pieces[square] = piece::none;
+      this->zobrist.update_piece(piece, square);
+    };
+
+     // make a move on the board
     void make(move_t move) {
       // add the undo object to the history
       this->history.push(undo_t {
@@ -229,131 +352,6 @@ class Board {
       );
     };
 
-    // push a uci move to the stack
-    void push_uci(std::string uci) {
-      this->make(this->from_uci(uci));
-    };
-
-    // get all the legal moves for the current turn
-    Stack<move_t, MAX_MOVE_LENGTH> legal_moves() {
-      if (this->turn == color::white) {
-        return this->generate<legal, color::white>();
-      } else {
-        return this->generate<legal, color::black>();
-      };
-    };
-
-    // do a perft and print intermediate results
-    u64_t perft(int depth) {
-      if (this->turn == color::white) {
-        return this->perft<color::white>(depth);
-      } else {
-        return this->perft<color::black>(depth);
-      };
-    };
-    
-    // do a perft but do not print anything
-    u64_t perft(int depth, bool count_only) {
-      if (this->turn == color::white) {
-        return this->perft<color::white>(depth, count_only);
-      } else {
-        return this->perft<color::black>(depth, count_only);
-      };
-    };
-
-    // see if current position is check
-    bool is_check() {
-      square_t king_square = get_lsb(this->bitboards[piece::to_color(piece::king, this->turn)]);
-      return (
-        this->attackers(king_square) &
-        this->bitboards[color::opponent(this->turn)]
-      );
-    };
-
-    // get the outcome of the game
-    outcome_t outcome() {
-      return this->outcome(!this->legal_moves().empty());
-    };
-
-    // get the outcome of the game given you know if there are any legal moves
-    outcome_t outcome(bool has_legal_moves) {
-      if (!has_legal_moves) {
-        if (this->is_check()) {
-          return outcome::checkmate_for(color::opponent(this->turn));
-        } else {
-          return outcome::stalemate;
-        };
-      } else if (this->halfmove_clock >= 100) {
-        return outcome::fifty_move_rule;
-      } else if (this->history.count([this](undo_t undo) {return undo.hash == this->zobrist.hash;}) >= 2) {
-        return outcome::threefold_repetition;
-      };
-      return outcome::none;
-    };
-
-  private:
-    
-    // do a perft for a given color and print intermediate results
-    template <color_t color>
-    u64_t perft(int depth) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      std::cout << "\tperft " << depth << " of " << std::endl;
-      std::cout << "\t" << this->fen() << std::endl << std::endl;
-      u64_t start = timing::nanoseconds();
-      u64_t count = 0;
-      auto moves = this->generate<legal, color>();
-      for (auto move : moves) {
-        u64_t local_start = timing::nanoseconds();
-        u64_t local_count = 0;
-        this->make(move);
-        local_count += perft<opponent>(depth - 1, true);
-        this->unmake();
-        u64_t local_end = timing::nanoseconds();
-        std::cout << "\t" << move::uci(move) << ": \t" << local_count << "\t\tMNps:\t" << 1000 * ((float)local_count) / ((float)(local_end - local_start)) << std::endl;
-        count += local_count;
-      };
-      u64_t end = timing::nanoseconds();
-      std::cout << std::endl << "\tTotal:\t" << count << "\t\tMNps:\t" << 1000 * ((float)count) / ((float)(end - start))  << std::endl;
-      return count;
-    };
-
-    // do a perft for a given color but do not print anything
-    template <color_t color>
-    u64_t perft(int depth, bool count_only) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      if (depth == 0) return 1;
-      if (depth == 1) return this->generate<legal, color>().size();
-      u64_t count = 0;
-      auto moves = this->generate<legal, color>();
-      for (auto move : moves) {
-        this->make(move);
-        count += perft<opponent>(depth - 1, true);
-        this->unmake();
-      };
-      return count;
-    };
-
-    // place a piece on a square
-    void place_piece(piece_t piece, square_t square) {
-      set_bit(this->bitboards[piece], square);
-      set_bit(this->bitboards[piece::type(piece)], square);
-      set_bit(this->bitboards[piece::color(piece)], square);
-      set_bit(this->bitboards[piece::none], square);
-      this->pieces[square] = piece;
-      this->zobrist.update_piece(piece, square);
-    };
-
-    // remove a piece from a square
-    void remove_piece(square_t square) {
-      piece_t piece = pieces[square];
-      clear_bit(this->bitboards[piece], square);
-      clear_bit(this->bitboards[piece::type(piece)], square);
-      clear_bit(this->bitboards[piece::color(piece)], square);
-      clear_bit(this->bitboards[piece::none], square);
-      this->pieces[square] = piece::none;
-      this->zobrist.update_piece(piece, square);
-    };
-
     // convert a uci move to a move_t
     move_t from_uci(std::string uci) {
       square_t from = (uci[0] - 'a') + 8 * (7 - (uci[1] - '1'));
@@ -369,6 +367,11 @@ class Board {
       bool castling = (piece::type(moved_piece) == piece::king) && (((from - to) == 2) || ((from - to) == -2));
       return move::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling, target_piece != moved_piece);
     };
+
+
+
+
+
 
     // generate all moves for a given generation type and color
     template <gen_t gen, color_t color>
@@ -478,25 +481,12 @@ class Board {
       bitboard_t rook_target = bitboard::none;
       bitboard_t queen_target = bitboard::none;
       bitboard_t king_target = bitboard::none;
-      if constexpr (gen == captures) {
-        pawn_target |= occupancy_opponent;
+      if constexpr (gen == capture) {
+        pawn_target |= occupancy_opponent | bitboard(this->enpassant);
         knight_target |= occupancy_opponent;
         bishop_target |= occupancy_opponent;
         rook_target |= occupancy_opponent;
         queen_target |= occupancy_opponent;
-        king_target |= occupancy_opponent;
-      } else if constexpr (gen == checks) {
-        pawn_target |= attack<opponent_pawn>(opponent_king_square);
-        knight_target |= attack<knight>(opponent_king_square);
-        bishop_target |= attack<bishop>(opponent_king_square, occupancy);
-        rook_target |= attack<rook>(opponent_king_square, occupancy);
-        queen_target |= attack<queen>(opponent_king_square, occupancy);
-      } else if constexpr (gen == checks_and_captures) {
-        pawn_target |= occupancy_opponent | attack<opponent_pawn>(opponent_king_square);
-        knight_target |= occupancy_opponent | attack<knight>(opponent_king_square);
-        bishop_target |= occupancy_opponent | attack<bishop>(opponent_king_square, occupancy);
-        rook_target |= occupancy_opponent | attack<rook>(opponent_king_square, occupancy);
-        queen_target |= occupancy_opponent | attack<queen>(opponent_king_square, occupancy);
         king_target |= occupancy_opponent;
       } else if constexpr (gen == legal) {
         pawn_target = bitboard::full;
@@ -505,6 +495,20 @@ class Board {
         rook_target = bitboard::full;
         queen_target = bitboard::full;
         king_target = bitboard::full;
+      // checks need more work: discovered checks
+      // } else if constexpr (gen == check) {
+      //   pawn_target |= attack<opponent_pawn>(opponent_king_square);
+      //   knight_target |= attack<knight>(opponent_king_square);
+      //   bishop_target |= attack<bishop>(opponent_king_square, occupancy);
+      //   rook_target |= attack<rook>(opponent_king_square, occupancy);
+      //   queen_target |= attack<queen>(opponent_king_square, occupancy);
+      // } else if constexpr (gen == check_or_capture) {
+      //   pawn_target |= occupancy_opponent | attack<opponent_pawn>(opponent_king_square);
+      //   knight_target |= occupancy_opponent | attack<knight>(opponent_king_square);
+      //   bishop_target |= occupancy_opponent | attack<bishop>(opponent_king_square, occupancy);
+      //   rook_target |= occupancy_opponent | attack<rook>(opponent_king_square, occupancy);
+      //   queen_target |= occupancy_opponent | attack<queen>(opponent_king_square, occupancy);
+      //   king_target |= occupancy_opponent;
       };
 
       // add all possible moves to the move stack
@@ -595,7 +599,7 @@ class Board {
       const bitboard_t& target=bitboard::full
     ) {
       constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
-      bitboard_t possible_to = attack<piece::king>(king_square) & ~occupancy_color & ~attacked_no_king & target;
+      bitboard_t possible_to = attack<king>(king_square) & ~occupancy_color & ~attacked_no_king & target;
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
         moves.push(move::move(king_square, to, king, king, this->pieces[to], false, false, false, false));

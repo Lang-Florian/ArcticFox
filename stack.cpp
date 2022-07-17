@@ -8,6 +8,7 @@
 
 
 #include <algorithm>
+#include <numeric>
 
 
 /*
@@ -86,6 +87,11 @@ class Stack {
 
     void sort(auto comparison) {
       std::stable_sort(this->array, this->array + this->_size_, comparison);
+    };
+
+    template <typename S>
+    S reduce(S initial, auto operation) {
+      return std::accumulate(this->array, this->array + this->_size_, initial, operation);
     };
 
     void reverse() {

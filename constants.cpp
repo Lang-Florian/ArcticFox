@@ -360,9 +360,9 @@ namespace outcome {
 
 // move generation constants
 enum get_t {
-  checks,
-  captures,
-  checks_and_captures,
+  check,
+  capture,
+  check_or_capture,
   legal,
 };
 

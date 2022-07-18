@@ -72,23 +72,14 @@ namespace attack_tables {
 
 
 template <piece_t piece>
-bitboard_t attack(square_t square) {
+bitboard_t attack(square_t square, bitboard_t occupancy=bitboard::none) {
   if constexpr (piece == piece::white_pawn) {
     return attack_tables::pawn[square][color::white];
   } else if constexpr (piece == piece::black_pawn) {
     return attack_tables::pawn[square][color::black];
   } else if constexpr (piece == piece::knight || piece == piece::white_knight || piece == piece::black_knight) {
     return attack_tables::knight[square];
-  } else if constexpr (piece == piece::king || piece == piece::white_king || piece == piece::black_king) {
-    return attack_tables::king[square];
-  } else {
-    return bitboard::none;
-  };
-};
-
-template <piece_t piece>
-bitboard_t attack(square_t square, bitboard_t occupancy) {
-  if constexpr (piece == piece::bishop || piece == piece::white_bishop || piece == piece::black_bishop) {
+  } else if constexpr (piece == piece::bishop || piece == piece::white_bishop || piece == piece::black_bishop) {
     return magic::table[
       magic::bishop[square].offset +
       (((occupancy | magic::bishop[square].mask) * magic::bishop[square].magic_number) >> (64 - 9))
@@ -109,9 +100,19 @@ bitboard_t attack(square_t square, bitboard_t occupancy) {
         (((occupancy | magic::rook[square].mask) * magic::rook[square].magic_number) >> (64 - 12))
       ]
     );
+  } else if constexpr (piece == piece::king || piece == piece::white_king || piece == piece::black_king) {
+    return attack_tables::king[square];
   } else {
     return bitboard::none;
   };
+};
+
+
+constexpr bitboard_t (*(attack_array[32]))(square_t, bitboard_t) = {
+  attack<0>, attack<1>, attack<2>, attack<3>, attack<4>, attack<5>, attack<6>, attack<7>,
+  attack<8>, attack<9>, attack<10>, attack<11>, attack<12>, attack<13>, attack<14>, attack<15>,
+  attack<16>, attack<17>, attack<18>, attack<19>, attack<20>, attack<21>, attack<22>, attack<23>,
+  attack<24>, attack<25>, attack<26>, attack<27>, attack<28>, attack<29>, attack<30>, attack<31>
 };
 
 

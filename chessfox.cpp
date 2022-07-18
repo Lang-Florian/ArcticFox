@@ -29,7 +29,7 @@ int main() {
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
   cout << "\tTotal:\t" << count << endl;
-  cout << "\tTime:\t" << time << endl;
+  cout << "\tTime:\t" << time / 1e9 << endl;
   cout << "\tMNps:\t" << 1000 * (float)count / (float)time << endl;
 
   board.set_fen(fen::pos2);
@@ -40,7 +40,7 @@ int main() {
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
   cout << "\tTotal:\t" << count << endl;
-  cout << "\tTime:\t" << time << endl;
+  cout << "\tTime:\t" << time / 1e9 << endl;
   cout << "\tMNps:\t" << 1000 * (float)count / (float)time << endl;
 
   board.set_fen(fen::pos3);
@@ -51,7 +51,7 @@ int main() {
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
   cout << "\tTotal:\t" << count << endl;
-  cout << "\tTime:\t" << time << endl;
+  cout << "\tTime:\t" << time / 1e9 << endl;
   cout << "\tMNps:\t" << 1000 * (float)count / (float)time << endl;
 
   board.set_fen(fen::pos4);
@@ -62,7 +62,7 @@ int main() {
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
   cout << "\tTotal:\t" << count << endl;
-  cout << "\tTime:\t" << time << endl;
+  cout << "\tTime:\t" << time / 1e9 << endl;
   cout << "\tMNps:\t" << 1000 * (float)count / (float)time << endl;
 
   board.set_fen(fen::pos5);
@@ -73,7 +73,7 @@ int main() {
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
   cout << "\tTotal:\t" << count << endl;
-  cout << "\tTime:\t" << time << endl;
+  cout << "\tTime:\t" << time / 1e9 << endl;
   cout << "\tMNps:\t" << 1000 * (float)count / (float)time << endl;
 
   board.set_fen(fen::pos6);
@@ -84,6 +84,6 @@ int main() {
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
   cout << "\tTotal:\t" << count << endl;
-  cout << "\tTime:\t" << time << endl;
+  cout << "\tTime:\t" << time / 1e9 << endl;
   cout << "\tMNps:\t" << 1000 * (float)count / (float)time << endl;
 };

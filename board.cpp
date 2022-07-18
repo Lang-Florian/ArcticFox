@@ -55,12 +55,12 @@ class Board {
     Stack<undo_t, MAX_GAME_LENGTH> history;
 
     // initialize the board
-    Board(std::string fen=fen::starting) {
+    Board(std::string fen=fen::startpos) {
       this->set_fen(fen);
     };
 
     // set the board to a given fen string
-    void set_fen(std::string fen=fen::starting) {
+    void set_fen(std::string fen=fen::startpos) {
       // clear lists and stacks
       this->bitboards.fill(bitboard::none);
       this->pieces.fill(piece::none);

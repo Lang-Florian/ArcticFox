@@ -132,6 +132,19 @@ namespace piece{
     NONE =         0b11110,
   };
 
+  piece_t all[] = {
+    white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king,
+    black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king,
+  };
+
+  piece_t all_white[] = {
+    white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king,
+  };
+
+  piece_t all_black[] = {
+    black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king,
+  };
+
   color_t color(piece_t piece) {
     return piece & 0b11;
   };

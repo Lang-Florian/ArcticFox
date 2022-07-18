@@ -53,11 +53,17 @@ class Board {
     u16_t fullmove_clock;
     Zobrist zobrist;
     Stack<undo_t, MAX_GAME_LENGTH> history;
+
     std::array<bitboard_t, 2> attacks;
     std::array<bitboard_t, 2> attacks_no_king;
     std::array<bitboard_t, 2> bishop_pins;
     std::array<bitboard_t, 2> rook_pins;
     std::array<bitboard_t, 2> enpassant_pins;
+    std::array<square_t, 2> king_square;
+    std::array<bitboard_t, 2> king_bishop_ray;
+    std::array<bitboard_t, 2> king_rook_ray;
+    std::array<bitboard_t, 2> king_bishop_attack;
+    std::array<bitboard_t, 2> king_rook_attack;
 
     // initialize the board
     Board(std::string fen=fen::startpos) {
@@ -446,7 +452,16 @@ class Board {
       };
     };
 
-
+    template <color_t color>
+    void update_king() {
+      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
+      bitboard_t occupancy = this->bitboards[piece::none];
+      this->king_square[color] = get_lsb(this->bitboards[king]);
+      this->king_bishop_ray[color] = attack_ray::bishop[this->king_square[color]];
+      this->king_rook_ray[color] = attack_ray::rook[this->king_square[color]];
+      this->king_bishop_attack[color] = attack<piece::bishop>(this->king_square[color], occupancy);
+      this->king_rook_attack[color] = attack<piece::rook>(this->king_square[color], occupancy);
+    };
 
 
 
@@ -478,22 +493,20 @@ class Board {
     // get all the legal moves for the current turn
     move_stack_t legal_moves() {
       if (this->turn == color::white) {
-        return this->generate<legal, color::white, ignore_outcome>();
+        return this->generate<color::white, ignore_outcome>();
       } else {
-        return this->generate<legal, color::black, ignore_outcome>();
+        return this->generate<color::black, ignore_outcome>();
       };
     };
 
     // do a perft
     Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth, gen_t gen) {
-      if (this->turn == color::white && gen == legal) {
-        return this->perft<legal, color::white>(depth);
-      } else if (this->turn == color::white && gen == capture) {
-        return this->perft<capture, color::white>(depth);
-      } else if (this->turn == color::black && gen == legal) {
-        return this->perft<legal, color::black>(depth);
-      }  else if (this->turn == color::black && gen == capture) {
-        return this->perft<capture, color::black>(depth);
+      if (this->turn == color::white) {
+        return this->perft<color::white, ignore_outcome>(depth);
+      } else if (this->turn == color::black) {
+        return this->perft<color::black, ignore_outcome>(depth);
+      } else {
+        return Stack<perft_t, MAX_MOVE_LENGTH>();
       };
     };
 
@@ -523,7 +536,7 @@ class Board {
     Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       Stack<perft_t, MAX_MOVE_LENGTH> perft_result;
-      auto moves = this->generate<legal, color, ignore_outcome>();
+      auto moves = this->generate<color, ignore_outcome>();
       for (auto move : moves) {
         u64_t start = timing::nanoseconds();
         this->make<color>(move);
@@ -542,7 +555,7 @@ class Board {
       if (depth == 0) return 1;
       // if (depth == 1) return this->generate<gen, color, ignore_outcome>().size();
       u64_t count = 0;
-      auto moves = this->generate<legal, color, ignore_outcome>();
+      auto moves = this->generate<color, ignore_outcome>();
       for (auto move : moves) {
         this->make<color>(move);
         count += perft<gen, opponent, true>(depth - 1);
@@ -553,11 +566,6 @@ class Board {
 
 
 
-
-
-    
-
-    
 
 
 
@@ -571,118 +579,56 @@ class Board {
 
 
     // generate all moves for a given generation type and color
-    template <gen_t gen, color_t color, bool outcome>
+    template <color_t color, bool check_outcome>
     move_stack_t generate() {
       move_stack_t moves;
       moves.clear();
 
       // important constants and variables
-      constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
-      constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
-      constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
-      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
-      constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
       constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
-      constexpr piece_t opponent_knight = piece::compiletime::to_color(piece::knight, opponent);
       constexpr piece_t opponent_bishop = piece::compiletime::to_color(piece::bishop, opponent);
       constexpr piece_t opponent_rook = piece::compiletime::to_color(piece::rook, opponent);
       constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
-      constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, opponent);
-      square_t king_square = get_lsb(this->bitboards[king]);
-      square_t opponent_king_square = get_lsb(this->bitboards[opponent_king]);
-      bitboard_t occupancy = this->bitboards[color::none];
-      bitboard_t occupancy_color = this->bitboards[color];
-      bitboard_t occupancy_opponent = this->bitboards[opponent];
-      bitboard_t occupancy_no_king = occupancy & ~this->bitboards[king];
-      bitboard_t king_bishop_ray = attack_ray::bishop[king_square];
-      bitboard_t king_rook_ray = attack_ray::rook[king_square];
-      bitboard_t king_bishop_attack = attack<piece::bishop>(king_square, occupancy);
-      bitboard_t king_rook_attack = attack<piece::rook>(king_square, occupancy);
-
 
       update_attacks<opponent>();
-      bitboard_t attacked = this->attacks[opponent];
-      bitboard_t attacked_no_king = this->attacks_no_king[opponent];
-
       update_pins<color>();
-      bitboard_t bishop_pinned = this->bishop_pins[color];
-      bitboard_t rook_pinned = this->rook_pins[color];
-      bitboard_t enpassant_pinned = this->enpassant_pins[color];
-
-      // generate all possible targets for the given generation type
-      bitboard_t pawn_target = bitboard::none;
-      bitboard_t knight_target = bitboard::none;
-      bitboard_t bishop_target = bitboard::none;
-      bitboard_t rook_target = bitboard::none;
-      bitboard_t queen_target = bitboard::none;
-      bitboard_t king_target = bitboard::none;
-      if constexpr (gen == capture) {
-        pawn_target |= occupancy_opponent | bitboard(this->enpassant);
-        knight_target |= occupancy_opponent;
-        bishop_target |= occupancy_opponent;
-        rook_target |= occupancy_opponent;
-        queen_target |= occupancy_opponent;
-        king_target |= occupancy_opponent;
-      } else if constexpr (gen == legal) {
-        pawn_target = bitboard::full;
-        knight_target = bitboard::full;
-        bishop_target = bitboard::full;
-        rook_target = bitboard::full;
-        queen_target = bitboard::full;
-        king_target = bitboard::full;
-      // checks need more work: discovered checks
-      // } else if constexpr (gen == check) {
-      //   pawn_target |= attack<opponent_pawn>(opponent_king_square);
-      //   knight_target |= attack<knight>(opponent_king_square);
-      //   bishop_target |= attack<bishop>(opponent_king_square, occupancy);
-      //   rook_target |= attack<rook>(opponent_king_square, occupancy);
-      //   queen_target |= attack<queen>(opponent_king_square, occupancy);
-      // } else if constexpr (gen == check_or_capture) {
-      //   pawn_target |= occupancy_opponent | attack<opponent_pawn>(opponent_king_square);
-      //   knight_target |= occupancy_opponent | attack<knight>(opponent_king_square);
-      //   bishop_target |= occupancy_opponent | attack<bishop>(opponent_king_square, occupancy);
-      //   rook_target |= occupancy_opponent | attack<rook>(opponent_king_square, occupancy);
-      //   queen_target |= occupancy_opponent | attack<queen>(opponent_king_square, occupancy);
-      //   king_target |= occupancy_opponent;
-      };
+      update_king<color>();
 
       // add all possible moves to the move stack
-      bitboard_t checkers = this->attackers(king_square) & this->bitboards[opponent];
+      bitboard_t checkers = this->attackers<opponent>(this->king_square[color]);
       square_t checker_square = get_lsb(checkers);
       if (checkers) {
         if (popcount(checkers) > 1) {
-          this->add_king_moves<color>(moves, this->attacks_no_king[opponent], king_square, occupancy_color, king_target);
+          this->add_king_moves<color>(moves);
           return moves;
         };
         piece_t checker = this->pieces[checker_square];
-        bitboard_t target = (
+        bitboard_t evasion_target = (
           bitboard(checker_square) |
-          ((king_bishop_attack & attack<opponent_bishop>(checker_square, occupancy)) * (checker == opponent_bishop)) |
-          ((king_rook_attack & attack<opponent_rook>(checker_square, occupancy)) * (checker == opponent_rook)) |
-          ((king_bishop_attack & attack<opponent_bishop>(checker_square, occupancy)) * (checker == opponent_queen && (king_bishop_attack & this->bitboards[opponent_queen]))) |
-          ((king_rook_attack & attack<opponent_rook>(checker_square, occupancy)) * (checker == opponent_queen && (king_rook_attack & this->bitboards[opponent_queen])))
+          ((this->king_bishop_attack[color] & attack<opponent_bishop>(checker_square, this->bitboards[color::none])) * (checker == opponent_bishop)) |
+          ((this->king_rook_attack[color] & attack<opponent_rook>(checker_square, this->bitboards[color::none])) * (checker == opponent_rook)) |
+          ((this->king_bishop_attack[color] & attack<opponent_bishop>(checker_square, this->bitboards[color::none])) * (checker == opponent_queen && (this->king_bishop_attack[color] & this->bitboards[opponent_queen]))) |
+          ((this->king_rook_attack[color] & attack<opponent_rook>(checker_square, this->bitboards[color::none])) * (checker == opponent_queen && (this->king_rook_attack[color] & this->bitboards[opponent_queen])))
         );
-        this->add_king_moves<color>(moves, this->attacks_no_king[opponent], king_square, occupancy_color, king_target);
-        this->add_enpassant_moves<color>(moves, bishop_pinned, rook_pinned, enpassant_pinned, king_bishop_ray, checker_square, target & pawn_target);
-        this->add_pawn_push_moves<color>(moves, bishop_pinned, rook_pinned, king_rook_ray, occupancy, target & pawn_target);
-        this->add_pawn_capture_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, occupancy_opponent, target & pawn_target);
-        this->add_knight_moves<color>(moves, bishop_pinned, rook_pinned, occupancy_color, target & knight_target);
-        this->add_bishop_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, occupancy, occupancy_color, target & bishop_target);
-        this->add_rook_moves<color>(moves, bishop_pinned, rook_pinned, king_rook_ray, occupancy, occupancy_color, target & rook_target);
-        this->add_queen_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, king_rook_ray, occupancy, occupancy_color, target & queen_target);
+        this->add_king_moves<color>(moves);
+        this->add_enpassant_moves<color>(moves, checker_square, evasion_target);
+        this->add_pawn_push_moves<color>(moves, evasion_target);
+        this->add_pawn_capture_moves<color>(moves, evasion_target);
+        this->add_knight_moves<color>(moves, evasion_target);
+        this->add_bishop_moves<color>(moves, evasion_target);
+        this->add_rook_moves<color>(moves, evasion_target);
+        this->add_queen_moves<color>(moves, evasion_target);
         return moves;
       };
-      this->add_castling_moves<color>(moves, this->attacks[opponent], occupancy, rook_target);
-      this->add_king_moves<color>(moves, this->attacks_no_king[opponent], king_square, occupancy_color, king_target);
-      this->add_enpassant_moves<color>(moves, bishop_pinned, rook_pinned, enpassant_pinned, king_bishop_ray, checker_square, pawn_target);
-      this->add_pawn_push_moves<color>(moves, bishop_pinned, rook_pinned, king_rook_ray, occupancy, pawn_target);
-      this->add_pawn_capture_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, occupancy_opponent, pawn_target);
-      this->add_knight_moves<color>(moves, bishop_pinned, rook_pinned, occupancy_color, knight_target);
-      this->add_bishop_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, occupancy, occupancy_color, bishop_target);
-      this->add_rook_moves<color>(moves, bishop_pinned, rook_pinned, king_rook_ray, occupancy, occupancy_color, rook_target);
-      this->add_queen_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, king_rook_ray, occupancy, occupancy_color, queen_target);
+      this->add_castling_moves<color>(moves);
+      this->add_king_moves<color>(moves);
+      this->add_enpassant_moves<color>(moves, checker_square);
+      this->add_pawn_push_moves<color>(moves);
+      this->add_pawn_capture_moves<color>(moves);
+      this->add_knight_moves<color>(moves);
+      this->add_bishop_moves<color>(moves);
+      this->add_rook_moves<color>(moves);
+      this->add_queen_moves<color>(moves);
       return moves;
     };
 
@@ -690,21 +636,20 @@ class Board {
     template <color_t color>
     void add_castling_moves(
       move_stack_t& moves,
-      const bitboard_t& attacked,
-      const bitboard_t& occupancy,
       const bitboard_t& target=bitboard::full
     ) {
+      bitboard_t occupancy = this->bitboards[color::none];
       if constexpr (color == color::white) {
         moves.push(move::move(square::e1, square::g1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
         moves.pop(
-          (attacked & castling::white_king_attack_mask) ||
+          (this->attacks[color::black] & castling::white_king_attack_mask) ||
           (occupancy & castling::white_king_piece_mask) ||
           !(this->castling & castling::white_king) ||
           !(get_bit(target, square::f1))
         );
         moves.push(move::move(square::e1, square::c1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
         moves.pop(
-          (attacked & castling::white_queen_attack_mask) ||
+          (this->attacks[color::black] & castling::white_queen_attack_mask) ||
           (occupancy & castling::white_queen_piece_mask) ||
           !(this->castling & castling::white_queen) ||
           !(get_bit(target, square::d1))
@@ -712,14 +657,14 @@ class Board {
       } else if constexpr (color == color::black) {
         moves.push(move::move(square::e8, square::g8, piece::black_king, piece::black_king, piece::none, false, false, true, false, false));
         moves.pop(
-          (attacked & castling::black_king_attack_mask) ||
+          (this->attacks[color::white] & castling::black_king_attack_mask) ||
           (occupancy & castling::black_king_piece_mask) ||
           !(this->castling & castling::black_king) ||
           !(get_bit(target, square::f8))
         );
         moves.push(move::move(square::e8, square::c8, piece::black_king, piece::black_king, piece::none, false, false, true, false, false));
         moves.pop(
-          (attacked & castling::black_queen_attack_mask) ||
+          (this->attacks[color::white] & castling::black_queen_attack_mask) ||
           (occupancy & castling::black_queen_piece_mask) ||
           !(this->castling & castling::black_queen) ||
           !(get_bit(target, square::d8))
@@ -731,15 +676,15 @@ class Board {
     template <color_t color>
     void add_king_moves(
       move_stack_t& moves,
-      const bitboard_t& attacked_no_king, const square_t& king_square,
-      const bitboard_t& occupancy_color,
       const bitboard_t& target=bitboard::full
     ) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
-      bitboard_t possible_to = attack<king>(king_square) & ~occupancy_color & ~attacked_no_king & target;
+      bitboard_t occupancy_color = this->bitboards[color];
+      bitboard_t possible_to = attack<king>(this->king_square[color]) & ~occupancy_color & ~this->attacks_no_king[opponent] & target;
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(move::move(king_square, to, king, king, this->pieces[to], false, false, false, false, false));
+        moves.push(move::move(this->king_square[color], to, king, king, this->pieces[to], false, false, false, false, false));
       };
     };
 
@@ -747,8 +692,6 @@ class Board {
     template <color_t color>
     void add_enpassant_moves(
       move_stack_t& moves,
-      const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned, const bitboard_t& enpassant_pinned,
-      const bitboard_t& king_bishop_ray,
       const square_t& checker_square,
       const bitboard_t& target=bitboard::full
     ) {
@@ -760,15 +703,15 @@ class Board {
       bitboard_t bishop_pinned_pawns = (
         this->bitboards[pawn] &
         attack<opponent_pawn>(this->enpassant) &
-        ~enpassant_pinned &
-        bishop_pinned &
-        ~rook_pinned
+        ~this->enpassant_pins[color] &
+        this->bishop_pins[color] &
+        ~this->rook_pins[color]
       );
       while (bishop_pinned_pawns) {
         square_t from = pop_lsb(bishop_pinned_pawns);
         moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false, false));
         moves.pop(
-          !get_bit(king_bishop_ray, this->enpassant) ||
+          !get_bit(this->king_bishop_ray[color], this->enpassant) ||
           (
             !get_bit(target, this->enpassant) &&
             (this->enpassant + enpassant_offset != checker_square)
@@ -778,9 +721,9 @@ class Board {
       bitboard_t free_pawns = (
         this->bitboards[pawn] &
         attack<opponent_pawn>(this->enpassant) &
-        ~enpassant_pinned &
-        ~bishop_pinned &
-        ~rook_pinned
+        ~this->enpassant_pins[color] &
+        ~this->bishop_pins[color] &
+        ~this->rook_pins[color]
       );
       while (free_pawns) {
         square_t from = pop_lsb(free_pawns);
@@ -796,9 +739,6 @@ class Board {
     template <color_t color>
     void add_pawn_push_moves(
       move_stack_t& moves,
-      const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
-      const bitboard_t& king_rook_ray,
-      const bitboard_t& occupancy,
       const bitboard_t& target=bitboard::full
     ) {
       constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
@@ -808,29 +748,30 @@ class Board {
       constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
       constexpr int push_offset = (color == color::white ? -8 : 8);
       constexpr int doublepush_offset = 2 * push_offset;
-      bitboard_t free_pawns = this->bitboards[pawn] & ~bishop_pinned & ~rook_pinned;
-      bitboard_t rook_pinned_pawns = this->bitboards[pawn] & ~bishop_pinned & rook_pinned;
+      bitboard_t occupancy = this->bitboards[color::none];
+      bitboard_t free_pawns = this->bitboards[pawn] & ~this->bishop_pins[color] & ~this->rook_pins[color];
+      bitboard_t rook_pinned_pawns = this->bitboards[pawn] & ~this->bishop_pins[color] & this->rook_pins[color];
       bitboard_t pushable_pawns;
       bitboard_t doublepushable_pawns;
       bitboard_t promoting_pawns;
       if constexpr (color == color::white) {
         pushable_pawns = (
           (free_pawns & ~(occupancy << 8) & (target << 8) & ~bitboard::rank_7) |
-          (rook_pinned_pawns & ~(occupancy << 8) & (target << 8) & (king_rook_ray << 8))
+          (rook_pinned_pawns & ~(occupancy << 8) & (target << 8) & (this->king_rook_ray[color] << 8))
         );
         doublepushable_pawns = (
           (free_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (target << 16) & bitboard::rank_2) |
-          (rook_pinned_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (target << 16) & bitboard::rank_2 & (king_rook_ray << 16))
+          (rook_pinned_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (target << 16) & bitboard::rank_2 & (this->king_rook_ray[color] << 16))
         );
         promoting_pawns = free_pawns & ~(occupancy << 8) & (target << 8) & bitboard::rank_7;
       } else if constexpr (color == color::black) {
         pushable_pawns = (
           (free_pawns & ~(occupancy >> 8) & (target >> 8) & ~bitboard::rank_2) |
-          (rook_pinned_pawns & ~(occupancy >> 8) & (target >> 8) & (king_rook_ray >> 8))
+          (rook_pinned_pawns & ~(occupancy >> 8) & (target >> 8) & (this->king_rook_ray[color] >> 8))
         );
         doublepushable_pawns = (
           (free_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (target >> 16) & bitboard::rank_7) |
-          (rook_pinned_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (target >> 16) & bitboard::rank_7 & (king_rook_ray >> 16))
+          (rook_pinned_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (target >> 16) & bitboard::rank_7 & (this->king_rook_ray[color] >> 16))
         );
         promoting_pawns = free_pawns & ~(occupancy >> 8) & (target >> 8) & bitboard::rank_2;
       } else return;
@@ -858,19 +799,18 @@ class Board {
     template <color_t color>
     void add_pawn_capture_moves(
       move_stack_t& moves,
-      const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
-      const bitboard_t& king_bishop_ray,
-      const bitboard_t& occupancy_opponent,
       const bitboard_t& target=bitboard::full
     ) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
       constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
       constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
       constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
       constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
       constexpr bitboard_t promotion_rank = (color == color::white) ? bitboard::rank_7 : bitboard::rank_2;
-      bitboard_t free_pawns = this->bitboards[pawn] & ~bishop_pinned & ~rook_pinned;
-      bitboard_t bishop_pinned_pawns = this->bitboards[pawn] & bishop_pinned & ~rook_pinned;
+      bitboard_t occupancy_opponent = this->bitboards[opponent];
+      bitboard_t free_pawns = this->bitboards[pawn] & ~this->bishop_pins[color] & ~this->rook_pins[color];
+      bitboard_t bishop_pinned_pawns = this->bitboards[pawn] & this->bishop_pins[color] & ~this->rook_pins[color];
       bitboard_t promoting_free_pawns = free_pawns & promotion_rank;
       bitboard_t not_promoting_free_pawns = free_pawns & ~promotion_rank;
       bitboard_t promoting_bishop_pinned_pawns = bishop_pinned_pawns & promotion_rank;
@@ -896,7 +836,7 @@ class Board {
       };
       while (promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & king_bishop_ray & target;
+        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, false));
@@ -908,7 +848,7 @@ class Board {
 
       while (not_promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(not_promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & king_bishop_ray & target;
+        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, false));
@@ -920,12 +860,11 @@ class Board {
     template <color_t color>
     void add_knight_moves(
       move_stack_t& moves,
-      const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
-      const bitboard_t& occupancy_color,
       const bitboard_t& target=bitboard::full
     ) {
       constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
-      bitboard_t free_knights = this->bitboards[knight] & ~bishop_pinned & ~rook_pinned;
+      bitboard_t occupancy_color = this->bitboards[color];
+      bitboard_t free_knights = this->bitboards[knight] & ~this->bishop_pins[color] & ~this->rook_pins[color];
       while (free_knights) {
         square_t from = pop_lsb(free_knights);
         bitboard_t possible_to = attack<knight>(from) & ~occupancy_color & target;
@@ -940,22 +879,21 @@ class Board {
     template <color_t color>
     void add_bishop_moves(
       move_stack_t& moves,
-      const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
-      const bitboard_t& king_bishop_ray,
-      const bitboard_t& occupancy, const bitboard_t& occupancy_color,
       const bitboard_t& target=bitboard::full
     ) {
       constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
-      bitboard_t bishop_pinned_bishops = this->bitboards[bishop] & bishop_pinned & ~rook_pinned;
+      bitboard_t occupancy = this->bitboards[color::none];
+      bitboard_t occupancy_color = this->bitboards[color];
+      bitboard_t bishop_pinned_bishops = this->bitboards[bishop] & this->bishop_pins[color] & ~this->rook_pins[color];
       while (bishop_pinned_bishops) {
         square_t from = pop_lsb(bishop_pinned_bishops);
-        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & king_bishop_ray & target;
+        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
         };
       };
-      bitboard_t free_bishops = this->bitboards[bishop] & ~bishop_pinned & ~rook_pinned;
+      bitboard_t free_bishops = this->bitboards[bishop] & ~this->bishop_pins[color] & ~this->rook_pins[color];
       while (free_bishops) {
         square_t from = pop_lsb(free_bishops);
         bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & target;
@@ -970,22 +908,21 @@ class Board {
     template <color_t color>
     void add_rook_moves(
       move_stack_t& moves,
-      const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
-      const bitboard_t& king_rook_ray,
-      const bitboard_t& occupancy, const bitboard_t& occupancy_color,
       const bitboard_t& target=bitboard::full
     ) {
       constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
-      bitboard_t rook_pinned_rooks = this->bitboards[rook] & ~bishop_pinned & rook_pinned;
+      bitboard_t occupancy = this->bitboards[color::none];
+      bitboard_t occupancy_color = this->bitboards[color];
+      bitboard_t rook_pinned_rooks = this->bitboards[rook] & ~this->bishop_pins[color] & this->rook_pins[color];
       while (rook_pinned_rooks) {
         square_t from = pop_lsb(rook_pinned_rooks);
-        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & king_rook_ray & target;
+        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
         };
       };
-      bitboard_t free_rooks = this->bitboards[rook] & ~bishop_pinned & ~rook_pinned;
+      bitboard_t free_rooks = this->bitboards[rook] & ~this->bishop_pins[color] & ~this->rook_pins[color];
       while (free_rooks) {
         square_t from = pop_lsb(free_rooks);
         bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & target;
@@ -1000,31 +937,30 @@ class Board {
     template <color_t color>
     void add_queen_moves(
       move_stack_t& moves,
-      const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
-      const bitboard_t& king_bishop_ray, const bitboard_t& king_rook_ray,
-      const bitboard_t& occupancy, const bitboard_t& occupancy_color,
       const bitboard_t& target=bitboard::full
     ) {
       constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-      bitboard_t bishop_pinned_queens = this->bitboards[queen] & bishop_pinned & ~rook_pinned;
+      bitboard_t occupancy = this->bitboards[color::none];
+      bitboard_t occupancy_color = this->bitboards[color];
+      bitboard_t bishop_pinned_queens = this->bitboards[queen] & this->bishop_pins[color] & ~this->rook_pins[color];
       while (bishop_pinned_queens) {
         square_t from = pop_lsb(bishop_pinned_queens);
-        bitboard_t possible_to = attack<piece::bishop>(from, occupancy) & ~occupancy_color & king_bishop_ray & target;
+        bitboard_t possible_to = attack<piece::bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
         };
       };
-      bitboard_t rook_pinned_queens = this->bitboards[queen] & ~bishop_pinned & rook_pinned;
+      bitboard_t rook_pinned_queens = this->bitboards[queen] & ~this->bishop_pins[color] & this->rook_pins[color];
       while (rook_pinned_queens) {
         square_t from = pop_lsb(rook_pinned_queens);
-        bitboard_t possible_to = attack<piece::rook>(from, occupancy) & ~occupancy_color & king_rook_ray & target;
+        bitboard_t possible_to = attack<piece::rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
         };
       };
-      bitboard_t free_queens = this->bitboards[queen] & ~bishop_pinned & ~rook_pinned;
+      bitboard_t free_queens = this->bitboards[queen] & ~this->bishop_pins[color] & ~this->rook_pins[color];
       while (free_queens) {
         square_t from = pop_lsb(free_queens);
         bitboard_t possible_to = attack<piece::queen>(from, occupancy) & ~occupancy_color & target;

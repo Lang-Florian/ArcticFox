@@ -360,11 +360,17 @@ namespace outcome {
 
 // move generation constants
 enum get_t {
-  check,
-  capture,
-  check_or_capture,
-  legal,
+  quiet =            0b0001,
+  direct_check =     0b0010,
+  discovered_check = 0b0100,
+  capture =          0b1000,
+  non_quiet =        0b1110,
+  legal =            0b1111,
 };
+
+
+const bool ignore_outcome = false;
+const bool include_outcome = true;
 
 
 #endif // __CONSTANTS__MODULE__

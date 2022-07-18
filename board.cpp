@@ -55,6 +55,9 @@ class Board {
     Stack<undo_t, MAX_GAME_LENGTH> history;
     std::array<bitboard_t, 2> attacks;
     std::array<bitboard_t, 2> attacks_no_king;
+    std::array<bitboard_t, 2> bishop_pins;
+    std::array<bitboard_t, 2> rook_pins;
+    std::array<bitboard_t, 2> enpassant_pins;
 
     // initialize the board
     Board(std::string fen=fen::startpos) {
@@ -397,7 +400,51 @@ class Board {
       };
     };
 
-
+    template <color_t color>
+    void update_pins() {
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
+      constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+      constexpr piece_t opponent_bishop = piece::compiletime::to_color(piece::bishop, opponent);
+      constexpr piece_t opponent_rook = piece::compiletime::to_color(piece::rook, opponent);
+      constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
+      square_t king_square = get_lsb(this->bitboards[king]);
+      bitboard_t king_bishop_ray = attack_ray::bishop[king_square];
+      bitboard_t king_rook_ray = attack_ray::rook[king_square];
+      bitboard_t occupancy = this->bitboards[piece::none];
+      bitboard_t king_bishop_attack = attack<piece::bishop>(king_square, occupancy);
+      bitboard_t king_rook_attack = attack<piece::rook>(king_square, occupancy);
+      // get all bishop pinned pieces
+      this->bishop_pins[color] = bitboard::none;
+      bitboard_t bishop_attackers = (this->bitboards[opponent_bishop] | this->bitboards[opponent_queen]) & king_bishop_ray;
+      while (bishop_attackers) {
+        square_t square = pop_lsb(bishop_attackers);
+        bishop_pins[color] |= attack<opponent_bishop>(square, occupancy) & king_bishop_attack;
+      };
+      // get all rook pinned pieces
+      this->rook_pins[color] = bitboard::none;
+      bitboard_t rook_attackers = (this->bitboards[opponent_rook] | this->bitboards[opponent_queen]) & king_rook_ray;
+      while (rook_attackers) {
+        square_t square = pop_lsb(rook_attackers);
+        this->rook_pins[color] |= attack<opponent_rook>(square, occupancy) & king_rook_attack;
+      };
+      // get all enpassant pinned pieces
+      this->enpassant_pins[color] = bitboard::full;
+      if (this->enpassant != square::none && color == this->turn) {
+        this->enpassant_pins[color] = bitboard::none;
+        bitboard_t enpassant_pawns = bitboard::none;
+        if constexpr (color == color::white) {
+          enpassant_pawns = bitboard(this->enpassant) << 8;
+        } else {
+          enpassant_pawns = bitboard(this->enpassant) >> 8;
+        };
+        bitboard_t enpassant_attackers = (this->bitboards[opponent_rook] | this->bitboards[opponent_queen]) & king_rook_ray;
+        while (enpassant_attackers) {
+          square_t square = pop_lsb(enpassant_attackers);
+          this->enpassant_pins[color] |= attack<opponent_rook>(square, occupancy & ~enpassant_pawns) & attack<opponent_rook>(king_square, occupancy & ~enpassant_pawns);
+        };
+      };
+    };
 
 
 
@@ -559,39 +606,10 @@ class Board {
       bitboard_t attacked = this->attacks[opponent];
       bitboard_t attacked_no_king = this->attacks_no_king[opponent];
 
-
-
-      // get all bishop pinned pieces
-      bitboard_t bishop_pinned = bitboard::none;
-      bitboard_t bishop_attackers = (this->bitboards[opponent_bishop] | this->bitboards[opponent_queen]) & king_bishop_ray;
-      while (bishop_attackers) {
-        square_t square = pop_lsb(bishop_attackers);
-        bishop_pinned |= attack<opponent_bishop>(square, occupancy) & king_bishop_attack;
-      };
-
-      // get all rook pinned pieces
-      bitboard_t rook_pinned = bitboard::none;
-      bitboard_t rook_attackers = (this->bitboards[opponent_rook] | this->bitboards[opponent_queen]) & king_rook_ray;
-      while (rook_attackers) {
-        square_t square = pop_lsb(rook_attackers);
-        rook_pinned |= attack<opponent_rook>(square, occupancy) & king_rook_attack;
-      };
-
-      // get all enpassant pinned pieces
-      bitboard_t enpassant_pinned = bitboard::none;
-      if (this->enpassant != square::none) {
-        bitboard_t enpassant_pawns = bitboard::none;
-        if constexpr (color == color::white) {
-          enpassant_pawns = bitboard(this->enpassant) << 8;
-        } else {
-          enpassant_pawns = bitboard(this->enpassant) >> 8;
-        };
-        bitboard_t enpassant_attackers = (this->bitboards[opponent_rook] | this->bitboards[opponent_queen]) & king_rook_ray;
-        while (enpassant_attackers) {
-          square_t square = pop_lsb(enpassant_attackers);
-          enpassant_pinned |= attack<opponent_rook>(square, occupancy & ~enpassant_pawns) & attack<opponent_rook>(king_square, occupancy & ~enpassant_pawns) & this->bitboards[pawn];
-        };
-      };
+      update_pins<color>();
+      bitboard_t bishop_pinned = this->bishop_pins[color];
+      bitboard_t rook_pinned = this->rook_pins[color];
+      bitboard_t enpassant_pinned = this->enpassant_pins[color];
 
       // generate all possible targets for the given generation type
       bitboard_t pawn_target = bitboard::none;
@@ -635,7 +653,7 @@ class Board {
       square_t checker_square = get_lsb(checkers);
       if (checkers) {
         if (popcount(checkers) > 1) {
-          this->add_king_moves<color>(moves, attacked_no_king, king_square, occupancy_color, king_target);
+          this->add_king_moves<color>(moves, this->attacks_no_king[opponent], king_square, occupancy_color, king_target);
           return moves;
         };
         piece_t checker = this->pieces[checker_square];
@@ -646,7 +664,7 @@ class Board {
           ((king_bishop_attack & attack<opponent_bishop>(checker_square, occupancy)) * (checker == opponent_queen && (king_bishop_attack & this->bitboards[opponent_queen]))) |
           ((king_rook_attack & attack<opponent_rook>(checker_square, occupancy)) * (checker == opponent_queen && (king_rook_attack & this->bitboards[opponent_queen])))
         );
-        this->add_king_moves<color>(moves, attacked_no_king, king_square, occupancy_color, king_target);
+        this->add_king_moves<color>(moves, this->attacks_no_king[opponent], king_square, occupancy_color, king_target);
         this->add_enpassant_moves<color>(moves, bishop_pinned, rook_pinned, enpassant_pinned, king_bishop_ray, checker_square, target & pawn_target);
         this->add_pawn_push_moves<color>(moves, bishop_pinned, rook_pinned, king_rook_ray, occupancy, target & pawn_target);
         this->add_pawn_capture_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, occupancy_opponent, target & pawn_target);
@@ -656,8 +674,8 @@ class Board {
         this->add_queen_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, king_rook_ray, occupancy, occupancy_color, target & queen_target);
         return moves;
       };
-      this->add_castling_moves<color>(moves, attacked, occupancy, rook_target);
-      this->add_king_moves<color>(moves, attacked_no_king, king_square, occupancy_color, king_target);
+      this->add_castling_moves<color>(moves, this->attacks[opponent], occupancy, rook_target);
+      this->add_king_moves<color>(moves, this->attacks_no_king[opponent], king_square, occupancy_color, king_target);
       this->add_enpassant_moves<color>(moves, bishop_pinned, rook_pinned, enpassant_pinned, king_bishop_ray, checker_square, pawn_target);
       this->add_pawn_push_moves<color>(moves, bishop_pinned, rook_pinned, king_rook_ray, occupancy, pawn_target);
       this->add_pawn_capture_moves<color>(moves, bishop_pinned, rook_pinned, king_bishop_ray, occupancy_opponent, pawn_target);

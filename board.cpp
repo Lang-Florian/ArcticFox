@@ -365,7 +365,7 @@ class Board {
       bool double_pawn_push = (piece::type(moved_piece) == piece::pawn) && (((from - to) == 16) || ((from - to) == -16));
       bool enpassant = (piece::type(moved_piece) == piece::pawn) && (to == this->enpassant);
       bool castling = (piece::type(moved_piece) == piece::king) && (((from - to) == 2) || ((from - to) == -2));
-      return move::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling, target_piece != moved_piece);
+      return move::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling, target_piece != moved_piece, false);
     };
 
 
@@ -558,14 +558,14 @@ class Board {
       const bitboard_t& target=bitboard::full
     ) {
       if constexpr (color == color::white) {
-        moves.push(move::move(square::e1, square::g1, piece::white_king, piece::white_king, piece::none, false, false, true, false));
+        moves.push(move::move(square::e1, square::g1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
         moves.pop(
           (attacked & castling::white_king_attack_mask) ||
           (occupancy & castling::white_king_piece_mask) ||
           !(this->castling & castling::white_king) ||
           !(get_bit(target, square::f1))
         );
-        moves.push(move::move(square::e1, square::c1, piece::white_king, piece::white_king, piece::none, false, false, true, false));
+        moves.push(move::move(square::e1, square::c1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
         moves.pop(
           (attacked & castling::white_queen_attack_mask) ||
           (occupancy & castling::white_queen_piece_mask) ||
@@ -573,14 +573,14 @@ class Board {
           !(get_bit(target, square::d1))
         );
       } else if constexpr (color == color::black) {
-        moves.push(move::move(square::e8, square::g8, piece::black_king, piece::black_king, piece::none, false, false, true, false));
+        moves.push(move::move(square::e8, square::g8, piece::black_king, piece::black_king, piece::none, false, false, true, false, false));
         moves.pop(
           (attacked & castling::black_king_attack_mask) ||
           (occupancy & castling::black_king_piece_mask) ||
           !(this->castling & castling::black_king) ||
           !(get_bit(target, square::f8))
         );
-        moves.push(move::move(square::e8, square::c8, piece::black_king, piece::black_king, piece::none, false, false, true, false));
+        moves.push(move::move(square::e8, square::c8, piece::black_king, piece::black_king, piece::none, false, false, true, false, false));
         moves.pop(
           (attacked & castling::black_queen_attack_mask) ||
           (occupancy & castling::black_queen_piece_mask) ||
@@ -602,7 +602,7 @@ class Board {
       bitboard_t possible_to = attack<king>(king_square) & ~occupancy_color & ~attacked_no_king & target;
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(move::move(king_square, to, king, king, this->pieces[to], false, false, false, false));
+        moves.push(move::move(king_square, to, king, king, this->pieces[to], false, false, false, false, false));
       };
     };
 
@@ -629,7 +629,7 @@ class Board {
       );
       while (bishop_pinned_pawns) {
         square_t from = pop_lsb(bishop_pinned_pawns);
-        moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false));
+        moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false, false));
         moves.pop(
           !get_bit(king_bishop_ray, this->enpassant) ||
           (
@@ -647,7 +647,7 @@ class Board {
       );
       while (free_pawns) {
         square_t from = pop_lsb(free_pawns);
-        moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false));
+        moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false, false));
         moves.pop(
           !get_bit(target, this->enpassant) &&
           (this->enpassant + enpassant_offset != checker_square)
@@ -700,20 +700,20 @@ class Board {
       while (pushable_pawns) {
         square_t from = pop_lsb(pushable_pawns);
         square_t to = from + push_offset;
-        moves.push(move::move(from, to, pawn, pawn, piece::none, false, false, false, false));
+        moves.push(move::move(from, to, pawn, pawn, piece::none, false, false, false, false, false));
       };
       while (doublepushable_pawns) {
         square_t from = pop_lsb(doublepushable_pawns);
         square_t to = from + doublepush_offset;
-        moves.push(move::move(from, to, pawn, pawn, piece::none, true, false, false, false));
+        moves.push(move::move(from, to, pawn, pawn, piece::none, true, false, false, false, false));
       };
       while (promoting_pawns) {
         square_t from = pop_lsb(promoting_pawns);
         square_t to = from + push_offset;
-        moves.push(move::move(from, to, pawn, knight, piece::none, false, false, false, true));
-        moves.push(move::move(from, to, pawn, bishop, piece::none, false, false, false, true));
-        moves.push(move::move(from, to, pawn, rook, piece::none, false, false, false, true));
-        moves.push(move::move(from, to, pawn, queen, piece::none, false, false, false, true));
+        moves.push(move::move(from, to, pawn, knight, piece::none, false, false, false, true, false));
+        moves.push(move::move(from, to, pawn, bishop, piece::none, false, false, false, true, false));
+        moves.push(move::move(from, to, pawn, rook, piece::none, false, false, false, true, false));
+        moves.push(move::move(from, to, pawn, queen, piece::none, false, false, false, true, false));
       };
     };
 
@@ -743,10 +743,10 @@ class Board {
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true));
-          moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true));
-          moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true));
-          moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true));
+          moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, false));
         };
       };
       while (not_promoting_free_pawns) {
@@ -754,7 +754,7 @@ class Board {
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, false));
         };
       };
       while (promoting_bishop_pinned_pawns) {
@@ -762,10 +762,10 @@ class Board {
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & king_bishop_ray & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true));
-          moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true));
-          moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true));
-          moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true));
+          moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, false));
         };
       };
 
@@ -774,7 +774,7 @@ class Board {
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & king_bishop_ray & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, false));
         };
       };
     };
@@ -794,7 +794,7 @@ class Board {
         bitboard_t possible_to = attack<knight>(from) & ~occupancy_color & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, false));
         };
       };
     };
@@ -815,7 +815,7 @@ class Board {
         bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & king_bishop_ray & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
         };
       };
       bitboard_t free_bishops = this->bitboards[bishop] & ~bishop_pinned & ~rook_pinned;
@@ -824,7 +824,7 @@ class Board {
         bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
         };
       };
     };
@@ -845,7 +845,7 @@ class Board {
         bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & king_rook_ray & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
         };
       };
       bitboard_t free_rooks = this->bitboards[rook] & ~bishop_pinned & ~rook_pinned;
@@ -854,7 +854,7 @@ class Board {
         bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
         };
       };
     };
@@ -875,7 +875,7 @@ class Board {
         bitboard_t possible_to = attack<piece::bishop>(from, occupancy) & ~occupancy_color & king_bishop_ray & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
         };
       };
       bitboard_t rook_pinned_queens = this->bitboards[queen] & ~bishop_pinned & rook_pinned;
@@ -884,7 +884,7 @@ class Board {
         bitboard_t possible_to = attack<piece::rook>(from, occupancy) & ~occupancy_color & king_rook_ray & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
         };
       };
       bitboard_t free_queens = this->bitboards[queen] & ~bishop_pinned & ~rook_pinned;
@@ -893,7 +893,7 @@ class Board {
         bitboard_t possible_to = attack<piece::queen>(from, occupancy) & ~occupancy_color & target;
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false));
+          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
         };
       };
     };

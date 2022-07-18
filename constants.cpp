@@ -132,17 +132,29 @@ namespace piece{
     NONE =         0b11110,
   };
 
-  piece_t all[] = {
+  constexpr piece_t all_pieces[12] = {
     white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king,
     black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king,
   };
 
-  piece_t all_white[] = {
+  constexpr piece_t white_pieces[6] = {
     white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king,
   };
 
-  piece_t all_black[] = {
+  constexpr piece_t black_pieces[6] = {
     black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king,
+  };
+
+  constexpr std::array<piece_t, 6> all_pieces_by_color[3] = {
+    {
+      white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king,
+    },
+    {
+      black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king,
+    },
+    {
+      pawn, knight, bishop, rook, queen, king,
+    },
   };
 
   color_t color(piece_t piece) {
@@ -382,8 +394,8 @@ enum get_t {
 };
 
 
-const bool ignore_outcome = false;
-const bool include_outcome = true;
+constexpr bool ignore_outcome = false;
+constexpr bool include_outcome = true;
 
 
 #endif // __CONSTANTS__MODULE__

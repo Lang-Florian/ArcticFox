@@ -53,8 +53,8 @@ class Board {
     u16_t fullmove_clock;
     Zobrist zobrist;
     Stack<undo_t, MAX_GAME_LENGTH> history;
-    std::array<bitboard_t, 32> attacks;
-    std::array<bitboard_t, 32> attacks_no_king;
+    std::array<bitboard_t, 2> attacks;
+    std::array<bitboard_t, 2> attacks_no_king;
 
     // initialize the board
     Board(std::string fen=fen::startpos) {
@@ -68,8 +68,6 @@ class Board {
       this->pieces.fill(piece::none);
       this->zobrist.clear();
       this->history.clear();
-      this->attacks.fill(bitboard::none);
-      this->attacks_no_king.fill(bitboard::none);
       
       // setup bitboards and pieces
       int index = 0;
@@ -155,7 +153,6 @@ class Board {
     // place a piece on a square
     template <color_t color>
     void place_piece(piece_t piece, square_t square) {
-      constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, color::compiletime::opponent(color)); 
       set_bit(this->bitboards[piece], square);
       set_bit(this->bitboards[piece::type(piece)], square);
       set_bit(this->bitboards[color], square);
@@ -384,6 +381,30 @@ class Board {
       return false;
     };
 
+    template <color_t color>
+    void update_attacks() {
+      constexpr std::array<piece_t, 6> all_pieces = piece::all_pieces_by_color[color];
+      constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, color::compiletime::opponent(color));
+      this->attacks[color] = bitboard::none;
+      this->attacks_no_king[color] = bitboard::none;
+      for (piece_t piece : all_pieces) {
+        bitboard_t pieces = this->bitboards[piece];
+        while (pieces) {
+          square_t square = pop_lsb(pieces);
+          this->attacks[color] |= attack_array[piece](square, this->bitboards[piece::none]);
+          this->attacks_no_king[color] |= attack_array[piece](square, this->bitboards[piece::none] & ~this->bitboards[opponent_king]);
+        };
+      };
+    };
+
+
+
+
+
+
+
+
+
 
 
 
@@ -496,6 +517,12 @@ class Board {
 
 
 
+
+
+
+
+
+
     // generate all moves for a given generation type and color
     template <gen_t gen, color_t color, bool outcome>
     move_stack_t generate() {
@@ -527,43 +554,12 @@ class Board {
       bitboard_t king_bishop_attack = attack<piece::bishop>(king_square, occupancy);
       bitboard_t king_rook_attack = attack<piece::rook>(king_square, occupancy);
 
-      // get all attacked squares and squares which are attacked if you ignore your own king
-      bitboard_t attacked = bitboard::none;
-      bitboard_t attacked_no_king = bitboard::none;
-      bitboard_t opponent_pawns = this->bitboards[opponent_pawn];
-      while (opponent_pawns) {
-        square_t square = pop_lsb(opponent_pawns);
-        attacked |= attack<opponent_pawn>(square);
-        attacked_no_king |= attack<opponent_pawn>(square);
-      };
-      bitboard_t opponent_knights = this->bitboards[opponent_knight];
-      while (opponent_knights) {
-        square_t square = pop_lsb(opponent_knights);
-        attacked |= attack<opponent_knight>(square);
-        attacked_no_king |= attack<opponent_knight>(square);
-      };
-      bitboard_t opponent_bishops = this->bitboards[opponent_bishop];
-      while (opponent_bishops) {
-        square_t square = pop_lsb(opponent_bishops);
-        attacked |= attack<opponent_bishop>(square, occupancy);
-        attacked_no_king |= attack<opponent_bishop>(square, occupancy_no_king);
-      };
-      bitboard_t opponent_rooks = this->bitboards[opponent_rook];
-      while (opponent_rooks) {
-        square_t square = pop_lsb(opponent_rooks);
-        attacked |= attack<opponent_rook>(square, occupancy);
-        attacked_no_king |= attack<opponent_rook>(square, occupancy_no_king);
-      };
-      bitboard_t opponent_queens = this->bitboards[opponent_queen];
-      while (opponent_queens) {
-        square_t square = pop_lsb(opponent_queens);
-        attacked |= attack<opponent_queen>(square, occupancy);
-        attacked_no_king |= attack<opponent_queen>(square, occupancy_no_king);
-      };
-      bitboard_t opponent_kings = this->bitboards[opponent_king];
-      square_t square = pop_lsb(opponent_kings);
-      attacked |= attack<opponent_king>(square);
-      attacked_no_king |= attack<opponent_king>(square);
+
+      update_attacks<opponent>();
+      bitboard_t attacked = this->attacks[opponent];
+      bitboard_t attacked_no_king = this->attacks_no_king[opponent];
+
+
 
       // get all bishop pinned pieces
       bitboard_t bishop_pinned = bitboard::none;

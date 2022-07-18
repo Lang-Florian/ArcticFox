@@ -53,6 +53,8 @@ class Board {
     u16_t fullmove_clock;
     Zobrist zobrist;
     Stack<undo_t, MAX_GAME_LENGTH> history;
+    std::array<bitboard_t, 32> attacks;
+    std::array<bitboard_t, 32> attacks_no_king;
 
     // initialize the board
     Board(std::string fen=fen::startpos) {
@@ -66,6 +68,8 @@ class Board {
       this->pieces.fill(piece::none);
       this->zobrist.clear();
       this->history.clear();
+      this->attacks.fill(bitboard::none);
+      this->attacks_no_king.fill(bitboard::none);
       
       // setup bitboards and pieces
       int index = 0;
@@ -148,17 +152,272 @@ class Board {
       this->make(this->from_uci(uci));
     };
 
-    // get all the legal moves for the current turn
-    Stack<move_t, MAX_MOVE_LENGTH> legal_moves() {
+    // place a piece on a square
+    template <color_t color>
+    void place_piece(piece_t piece, square_t square) {
+      constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, color::compiletime::opponent(color)); 
+      set_bit(this->bitboards[piece], square);
+      set_bit(this->bitboards[piece::type(piece)], square);
+      set_bit(this->bitboards[color], square);
+      set_bit(this->bitboards[piece::none], square);
+      this->pieces[square] = piece;
+      this->zobrist.update_piece(piece, square);
+    };
+
+    // remove a piece from a square
+    template <color_t color>
+    void remove_piece(square_t square) {
+      piece_t piece = pieces[square];
+      clear_bit(this->bitboards[piece], square);
+      clear_bit(this->bitboards[piece::type(piece)], square);
+      clear_bit(this->bitboards[color], square);
+      clear_bit(this->bitboards[piece::none], square);
+      this->pieces[square] = piece::none;
+      this->zobrist.update_piece(piece, square);
+    };
+
+    void place_piece(piece_t piece, square_t square) {
+      if (piece::color(piece) == color::white) {
+        this->place_piece<color::white>(piece, square);
+      } else if (piece::color(piece) == color::black) {
+        this->place_piece<color::black>(piece, square);
+      };
+    };
+
+    void remove_piece(square_t square) {
+      if (piece::color(this->pieces[square]) == color::white) {
+        this->remove_piece<color::white>(square);
+      } else if (piece::color(this->pieces[square]) == color::black) {
+        this->remove_piece<color::black>(square);
+      };
+    };
+
+    // make a move on the board
+    template <color_t color>
+    void make(move_t move) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
+
+      // add the undo object to the history
+      this->history.push(undo_t {
+        move,
+        this->castling,
+        this->enpassant,
+        this->halfmove_clock,
+        this->zobrist.hash,
+      });
+
+      // remove castling and enpassant square from the hash
+      this->zobrist.update_castling(this->castling);
+      this->zobrist.update_enpassant(this->enpassant);
+
+      // remove castling rights if needed
+      this->castling &= ~move::removed_castling(move);
+
+      // remove enpassant square to be updated later
+      this->enpassant = square::none;
+
+      // change move clocks
+      this->halfmove_clock = (this->halfmove_clock + 1) & (u16_t)((!(piece::type(move::moved_piece(move)) == piece::pawn || move::capture(move))) * 0xFFFF);
+      if constexpr (color == color::black) {
+        this->fullmove_clock++;
+      };
+
+      // do move
+      square_t from = move::from(move);
+      square_t to = move::to(move);
+
+      this->remove_piece<color>(from);
+      this->remove_piece<opponent>(to);
+      this->place_piece<color>(move::target_piece(move), to);
+      if (move::enpassant(move)) {
+        if constexpr (color == color::white) {
+          this->remove_piece<opponent>(to + 8);
+        } else if constexpr (color == color::black) {
+          this->remove_piece<opponent>(to - 8);
+        };
+      } else if (move::castling(move)) {
+        this->remove_piece<color>(to + (to > from) * 3 - 2);
+        this->place_piece<color>(rook, to - (to > from) * 2 + 1);
+      } else if (move::double_pawn_push(move)) {
+        if constexpr (color == color::white) {
+          this->enpassant = to + 8;
+        } else if constexpr (color == color::black) {
+          this->enpassant = to - 8;
+        };
+      };
+
+      // change turn
+      this->turn = opponent;
+
+      // add castling, enpassant square and the turn change to the hash
+      this->zobrist.update_castling(this->castling);
+      this->zobrist.update_enpassant(this->enpassant);
+      this->zobrist.update_turn();
+    };
+
+    // undo a move on the board
+    template <color_t color>
+    void unmake() {
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
+      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
+
+      // restore history
+      undo_t undo = this->history.pop();
+      move_t move = undo.move;
+      this->castling = undo.castling;
+      this->enpassant = undo.enpassant;
+      this->halfmove_clock = undo.halfmove_clock;
+
+      // change turn
+      this->turn = color;
+
+      // change move clocks
+      if constexpr (color == color::black) {
+        this->fullmove_clock--;
+      };
+      
+      // undo move
+      square_t from = move::from(move);
+      square_t to = move::to(move);
+
+      this->remove_piece<color>(to);
+      this->place_piece<color>(move::moved_piece(move), from);
+      if (move::enpassant(move)) {
+        if constexpr (color == color::white) {
+          this->place_piece<opponent>(opponent_pawn, to + 8);
+        } else if constexpr (color == color::black) {
+          this->place_piece<opponent>(opponent_pawn, to - 8);
+        };
+      } else if (move::castling(move)) {
+        this->remove_piece<color>(to - (to > from) * 2 + 1);
+        this->place_piece<color>(rook, to + (to > from) * 3 - 2);
+      } else if (move::capture(move)) {
+        this->place_piece<opponent>(move::captured_piece(move), to);
+      };
+
+      // restore hash
+      this->zobrist.set(undo.hash);
+    };
+
+    void make(move_t move) {
       if (this->turn == color::white) {
-        return this->generate<legal, color::white>();
+        this->make<color::white>(move);
+      } else if (this->turn == color::black) {
+        this->make<color::black>(move);
+      };
+    };
+
+    void unmake() {
+      if (this->turn == color::white) {
+        this->unmake<color::black>();
+      } else if (this->turn == color::black) {
+        this->unmake<color::white>();
+      };
+    };
+
+    // get all the attacks on a square
+    bitboard_t attackers(square_t square) {
+      return (
+        (attack<piece::black_pawn>(square) & this->bitboards[piece::white_pawn]) |
+        (attack<piece::white_pawn>(square) & this->bitboards[piece::black_pawn]) |
+        (attack<piece::knight>(square) & this->bitboards[piece::knight]) |
+        (attack<piece::bishop>(square, this->bitboards[piece::none]) & this->bitboards[piece::bishop]) |
+        (attack<piece::rook>(square, this->bitboards[piece::none]) & this->bitboards[piece::rook]) |
+        (attack<piece::queen>(square, this->bitboards[piece::none]) & this->bitboards[piece::queen]) |
+        (attack<piece::king>(square) & this->bitboards[piece::king])
+      );
+    };
+
+    template <color_t color>
+    bitboard_t attackers(square_t square) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+      constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
+      constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
+      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
+      constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
+      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
+      constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
+      return (
+        (attack<opponent_pawn>(square) & this->bitboards[pawn]) |
+        (attack<piece::knight>(square) & this->bitboards[knight]) |
+        (attack<piece::bishop>(square, this->bitboards[piece::none]) & this->bitboards[bishop]) |
+        (attack<piece::rook>(square, this->bitboards[piece::none]) & this->bitboards[rook]) |
+        (attack<piece::queen>(square, this->bitboards[piece::none]) & this->bitboards[queen]) |
+        (attack<piece::king>(square) & this->bitboards[king])
+      );
+    };
+
+    // convert a uci move to a move_t
+    move_t from_uci(std::string uci) {
+      square_t from = (uci[0] - 'a') + 8 * (7 - (uci[1] - '1'));
+      square_t to = (uci[2] - 'a') + 8 * (7 - (uci[3] - '1'));
+      piece_t moved_piece = this->pieces[from];
+      piece_t target_piece = moved_piece;
+      if (uci.length() == 5) {
+        target_piece = piece::to_color(piece::from_char(uci[4]), this->turn);
+      };
+      piece_t captured_piece = this->pieces[to];
+      bool double_pawn_push = (piece::type(moved_piece) == piece::pawn) && (((from - to) == 16) || ((from - to) == -16));
+      bool enpassant = (piece::type(moved_piece) == piece::pawn) && (to == this->enpassant);
+      bool castling = (piece::type(moved_piece) == piece::king) && (((from - to) == 2) || ((from - to) == -2));
+      return move::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling, target_piece != moved_piece, false);
+    };
+
+    // see if current position is check
+    template <color_t color>
+    bool is_check() {
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
+      square_t king_square = get_lsb(this->bitboards[king]);
+      return this->attackers<opponent>(king_square);
+    };
+
+    bool is_check() {
+      if (this->turn == color::white) {
+        return this->is_check<color::white>();
+      } else if (this->turn == color::black) {
+        return this->is_check<color::black>();
+      };
+      return false;
+    };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // get all the legal moves for the current turn
+    move_stack_t legal_moves() {
+      if (this->turn == color::white) {
+        return this->generate<legal, color::white, ignore_outcome>();
       } else {
-        return this->generate<legal, color::black>();
+        return this->generate<legal, color::black, ignore_outcome>();
       };
     };
 
     // do a perft
-    Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth, gen_t gen=legal) {
+    Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth, gen_t gen) {
       if (this->turn == color::white && gen == legal) {
         return this->perft<legal, color::white>(depth);
       } else if (this->turn == color::white && gen == capture) {
@@ -168,15 +427,6 @@ class Board {
       }  else if (this->turn == color::black && gen == capture) {
         return this->perft<capture, color::black>(depth);
       };
-    };
-
-    // see if current position is check
-    bool is_check() {
-      square_t king_square = get_lsb(this->bitboards[piece::to_color(piece::king, this->turn)]);
-      return (
-        this->attackers(king_square) &
-        this->bitboards[color::opponent(this->turn)]
-      );
     };
 
     // get the outcome of the game
@@ -199,20 +449,18 @@ class Board {
       };
       return outcome::none;
     };
-
-  private:
     
     // do a perft for a given color and generation type
     template <gen_t gen, color_t color>
     Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       Stack<perft_t, MAX_MOVE_LENGTH> perft_result;
-      auto moves = this->generate<legal, color>();
+      auto moves = this->generate<legal, color, ignore_outcome>();
       for (auto move : moves) {
         u64_t start = timing::nanoseconds();
-        this->make(move);
+        this->make<color>(move);
         u64_t count = perft<gen, opponent, true>(depth - 1);
-        this->unmake();
+        this->unmake<color>();
         u64_t end = timing::nanoseconds();
         perft_result.push(perft_t {move, count, end - start});
       };
@@ -223,150 +471,25 @@ class Board {
     template <gen_t gen, color_t color, bool count_only>
     u64_t perft(int depth) {
       constexpr color_t opponent = color::compiletime::opponent(color);
-      if (depth == 1) return this->generate<gen, color>().size();
+      if (depth == 0) return 1;
+      // if (depth == 1) return this->generate<gen, color, ignore_outcome>().size();
       u64_t count = 0;
-      auto moves = this->generate<legal, color>();
+      auto moves = this->generate<legal, color, ignore_outcome>();
       for (auto move : moves) {
-        this->make(move);
+        this->make<color>(move);
         count += perft<gen, opponent, true>(depth - 1);
-        this->unmake();
+        this->unmake<color>();
       };
       return count;
     };
 
-    // place a piece on a square
-    void place_piece(piece_t piece, square_t square) {
-      set_bit(this->bitboards[piece], square);
-      set_bit(this->bitboards[piece::type(piece)], square);
-      set_bit(this->bitboards[piece::color(piece)], square);
-      set_bit(this->bitboards[piece::none], square);
-      this->pieces[square] = piece;
-      this->zobrist.update_piece(piece, square);
-    };
 
-    // remove a piece from a square
-    void remove_piece(square_t square) {
-      piece_t piece = pieces[square];
-      clear_bit(this->bitboards[piece], square);
-      clear_bit(this->bitboards[piece::type(piece)], square);
-      clear_bit(this->bitboards[piece::color(piece)], square);
-      clear_bit(this->bitboards[piece::none], square);
-      this->pieces[square] = piece::none;
-      this->zobrist.update_piece(piece, square);
-    };
 
-     // make a move on the board
-    void make(move_t move) {
-      // add the undo object to the history
-      this->history.push(undo_t {
-        move,
-        this->castling,
-        this->enpassant,
-        this->halfmove_clock,
-        this->zobrist.hash,
-      });
 
-      // remove castling and enpassant square from the hash
-      this->zobrist.update_castling(this->castling);
-      this->zobrist.update_enpassant(this->enpassant);
 
-      // remove castling rights if needed
-      this->castling &= ~move::removed_castling(move);
+    
 
-      // remove enpassant square to be updated later
-      this->enpassant = square::none;
-
-      // change move clocks
-      this->halfmove_clock = (this->halfmove_clock + 1) & (u16_t)((!(piece::type(move::moved_piece(move)) == piece::pawn || move::capture(move))) * 0xFFFF);
-      this->fullmove_clock += (this->turn == color::black);
-
-      // do move
-      square_t from = move::from(move);
-      square_t to = move::to(move);
-
-      this->remove_piece(from);
-      this->remove_piece(to);
-      this->place_piece(move::target_piece(move), to);
-      if (move::enpassant(move)) {
-        this->remove_piece(to - (8 - 16 * (this->turn == color::white)));
-      } else if (move::castling(move)) {
-        this->remove_piece(to + (to > from) * 3 - 2);
-        this->place_piece(piece::to_color(piece::rook, this->turn), to - (to > from) * 2 + 1);
-      } else if (move::double_pawn_push(move)) {
-        this->enpassant = to - (8 - 16 * (this->turn == color::white));
-      };
-
-      // change turn
-      this->turn = color::opponent(this->turn);
-
-      // add castling, enpassant square and the turn change to the hash
-      this->zobrist.update_castling(this->castling);
-      this->zobrist.update_enpassant(this->enpassant);
-      this->zobrist.update_turn();
-    };
-
-    // undo a move on the board
-    void unmake() {
-      // restore history
-      undo_t undo = this->history.pop();
-      move_t move = undo.move;
-      this->castling = undo.castling;
-      this->enpassant = undo.enpassant;
-      this->halfmove_clock = undo.halfmove_clock;
-
-      // change turn
-      this->turn = color::opponent(this->turn);
-
-      // change move clocks
-      this->fullmove_clock -= (this->turn == color::black);
-      
-      // undo move
-      square_t from = move::from(move);
-      square_t to = move::to(move);
-
-      this->remove_piece(to);
-      this->place_piece(move::moved_piece(move), from);
-      if (move::enpassant(move)) {
-        this->place_piece(piece::to_color(piece::pawn, color::opponent(this->turn)), to - (8 - 16 * (this->turn == color::white)));
-      } else if (move::castling(move)) {
-        this->remove_piece(to - (to > from) * 2 + 1);
-        this->place_piece(piece::to_color(piece::rook, this->turn), to + (to > from) * 3 - 2);
-      } else if (move::capture(move)) {
-        this->place_piece(move::captured_piece(move), to);
-      };
-
-      // restore hash
-      this->zobrist.set(undo.hash);
-    };
-
-    // get all the attacks on a square
-    bitboard_t attackers(square_t square) {
-      return (
-        (attack<piece::black_pawn>(square) & this->bitboards[piece::white_pawn]) |
-        (attack<piece::white_pawn>(square) & this->bitboards[piece::black_pawn]) |
-        (attack<piece::knight>(square) & this->bitboards[piece::knight]) |
-        (attack<piece::bishop>(square, this->bitboards[piece::none]) & this->bitboards[piece::bishop]) |
-        (attack<piece::rook>(square, this->bitboards[piece::none]) & this->bitboards[piece::rook]) |
-        (attack<piece::queen>(square, this->bitboards[piece::none]) & this->bitboards[piece::queen]) |
-        (attack<piece::king>(square) & this->bitboards[piece::king])
-      );
-    };
-
-    // convert a uci move to a move_t
-    move_t from_uci(std::string uci) {
-      square_t from = (uci[0] - 'a') + 8 * (7 - (uci[1] - '1'));
-      square_t to = (uci[2] - 'a') + 8 * (7 - (uci[3] - '1'));
-      piece_t moved_piece = this->pieces[from];
-      piece_t target_piece = moved_piece;
-      if (uci.length() == 5) {
-        target_piece = piece::to_color(piece::from_char(uci[4]), this->turn);
-      };
-      piece_t captured_piece = this->pieces[to];
-      bool double_pawn_push = (piece::type(moved_piece) == piece::pawn) && (((from - to) == 16) || ((from - to) == -16));
-      bool enpassant = (piece::type(moved_piece) == piece::pawn) && (to == this->enpassant);
-      bool castling = (piece::type(moved_piece) == piece::king) && (((from - to) == 2) || ((from - to) == -2));
-      return move::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling, target_piece != moved_piece, false);
-    };
+    
 
 
 
@@ -374,9 +497,9 @@ class Board {
 
 
     // generate all moves for a given generation type and color
-    template <gen_t gen, color_t color>
-    Stack<move_t, MAX_MOVE_LENGTH> generate() {
-      Stack<move_t, MAX_MOVE_LENGTH> moves;
+    template <gen_t gen, color_t color, bool outcome>
+    move_stack_t generate() {
+      move_stack_t moves;
       moves.clear();
 
       // important constants and variables
@@ -552,7 +675,7 @@ class Board {
     // add legal castling moves to the move stack
     template <color_t color>
     void add_castling_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& attacked,
       const bitboard_t& occupancy,
       const bitboard_t& target=bitboard::full
@@ -593,7 +716,7 @@ class Board {
     // add legal king moves to the move stack
     template <color_t color>
     void add_king_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& attacked_no_king, const square_t& king_square,
       const bitboard_t& occupancy_color,
       const bitboard_t& target=bitboard::full
@@ -609,7 +732,7 @@ class Board {
     // add legal enpassant moves to the move stack
     template <color_t color>
     void add_enpassant_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned, const bitboard_t& enpassant_pinned,
       const bitboard_t& king_bishop_ray,
       const square_t& checker_square,
@@ -658,7 +781,7 @@ class Board {
     // add legal pawn push moves to the move stack
     template <color_t color>
     void add_pawn_push_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
       const bitboard_t& king_rook_ray,
       const bitboard_t& occupancy,
@@ -720,7 +843,7 @@ class Board {
     // add legal pawn capture moves to the move stack
     template <color_t color>
     void add_pawn_capture_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
       const bitboard_t& king_bishop_ray,
       const bitboard_t& occupancy_opponent,
@@ -782,7 +905,7 @@ class Board {
     // add legal knight moves to the move stack
     template <color_t color>
     void add_knight_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
       const bitboard_t& occupancy_color,
       const bitboard_t& target=bitboard::full
@@ -802,7 +925,7 @@ class Board {
     // add legal bishop moves to the move stack
     template <color_t color>
     void add_bishop_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
       const bitboard_t& king_bishop_ray,
       const bitboard_t& occupancy, const bitboard_t& occupancy_color,
@@ -832,7 +955,7 @@ class Board {
     // add legal rook moves to the move stack
     template <color_t color>
     void add_rook_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
       const bitboard_t& king_rook_ray,
       const bitboard_t& occupancy, const bitboard_t& occupancy_color,
@@ -862,7 +985,7 @@ class Board {
     // add legal queen moves to the move stack
     template <color_t color>
     void add_queen_moves(
-      Stack<move_t, MAX_MOVE_LENGTH>& moves,
+      move_stack_t& moves,
       const bitboard_t& bishop_pinned, const bitboard_t& rook_pinned,
       const bitboard_t& king_bishop_ray, const bitboard_t& king_rook_ray,
       const bitboard_t& occupancy, const bitboard_t& occupancy_color,

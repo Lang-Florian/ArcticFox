@@ -19,14 +19,14 @@ using namespace std;
 void do_perft(std::string fen, int depth) {
   Board board;
   board.set_fen(fen);
-  Stack<perft_t, MAX_MOVE_LENGTH> perft_results = board.perft(depth, legal);
-  u64_t count = perft_results.reduce(0ULL, [](auto a, auto b) {return a + b.count;});
-  u64_t time = perft_results.reduce(0ULL, [](auto a, auto b) {return a + b.time;});
+  u64_t start = timing::nanoseconds();
+  u64_t count = board.perft(depth);
+  u64_t end = timing::nanoseconds();
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
   cout << "\tTotal:\t" << count << endl;
-  cout << "\tTime:\t" << time / 1e9 << endl;
-  cout << "\tMNps:\t" << 1000 * (float)count / (float)time << endl;
+  cout << "\tTime:\t" << (end - start) / 1e9 << endl;
+  cout << "\tMNps:\t" << 1000 * (float)count / (float)(end - start) << endl;
 };
 
 int main() {

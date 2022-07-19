@@ -463,56 +463,118 @@ class Board {
       this->king_rook_attack[color] = attack<piece::rook>(this->king_square[color], occupancy);
     };
 
+    // generate all moves for a given generation type and color
+    template <color_t color, typename T=move_stack_t>
+    T generate() {
+      // important constants and variables
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      constexpr piece_t opponent_bishop = piece::compiletime::to_color(piece::bishop, opponent);
+      constexpr piece_t opponent_rook = piece::compiletime::to_color(piece::rook, opponent);
+      constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
 
+      T moves;
+      if constexpr (typeid(T) == typeid(move_stack_t)) {
+        moves.clear();
+      } else {
+        moves = 0;
+      };
 
+      this->update_attacks<opponent>();
+      this->update_pins<color>();
+      this->update_king<color>();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      // add all possible moves to the move stack
+      bitboard_t evasion_target = bitboard::none;
+      bitboard_t checkers = this->attackers<opponent>(this->king_square[color]);
+      if (popcount(checkers) > 1) {
+        this->add_king_moves<color>(moves);
+        return moves;
+      } else if (checkers) {
+        square_t checker_square = get_lsb(checkers);
+        switch (this->pieces[checker_square]) {
+          case opponent_bishop:
+            evasion_target = bitboard(checker_square) | (this->king_bishop_attack[color] & attack<opponent_bishop>(checker_square, this->bitboards[color::none]));
+            break;
+          case opponent_rook:
+            evasion_target = bitboard(checker_square) | (this->king_rook_attack[color] & attack<opponent_rook>(checker_square, this->bitboards[color::none]));
+            break;
+          case opponent_queen:
+            if (this->king_bishop_attack[color] & this->bitboards[opponent_queen]) {
+              evasion_target = bitboard(checker_square) | (this->king_bishop_attack[color] & attack<opponent_bishop>(checker_square, this->bitboards[color::none]));
+            } else if (this->king_rook_attack[color] & this->bitboards[opponent_queen]) {
+              evasion_target = bitboard(checker_square) | (this->king_rook_attack[color] & attack<opponent_rook>(checker_square, this->bitboards[color::none]));
+            };
+            break;
+          default:
+            evasion_target = bitboard(checker_square);
+            break;
+        };
+      } else {
+        evasion_target = bitboard::full;
+        this->add_castling_moves<color>(moves);
+      };
+      this->add_king_moves<color>(moves);
+      this->add_enpassant_moves<color>(moves, evasion_target);
+      this->add_pawn_push_moves<color>(moves, evasion_target);
+      this->add_pawn_capture_moves<color>(moves, evasion_target);
+      this->add_knight_moves<color>(moves, evasion_target);
+      this->add_bishop_moves<color>(moves, evasion_target);
+      this->add_rook_moves<color>(moves, evasion_target);
+      this->add_queen_moves<color>(moves, evasion_target);
+      return moves;
+    };
 
     // get all the legal moves for the current turn
     move_stack_t legal_moves() {
       if (this->turn == color::white) {
-        return this->generate<color::white, ignore_outcome>();
+        return this->generate<color::white, move_stack_t>();
       } else {
-        return this->generate<color::black, ignore_outcome>();
+        return this->generate<color::black, move_stack_t>();
       };
     };
 
-    // do a perft
-    Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth, gen_t gen) {
-      if (this->turn == color::white) {
-        return this->perft<color::white, ignore_outcome>(depth);
-      } else if (this->turn == color::black) {
-        return this->perft<color::black, ignore_outcome>(depth);
-      } else {
-        return Stack<perft_t, MAX_MOVE_LENGTH>();
+    template <color_t color>
+    u64_t perft(int depth) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
+      if (depth == 0) {
+        return 1;
+      } else if (depth == 1) {
+        return this->generate<color, u64_t>();
+      } else if (depth == 2) {
+        u64_t count = 0;
+        auto moves = this->generate<color>();
+        for (auto move : moves) {
+          this->make<color>(move);
+          count += this->generate<opponent, u64_t>();
+          this->unmake<color>();
+        };
+        return count;
       };
+      u64_t count = 0;
+      auto moves = this->generate<color>();
+      for (auto move : moves) {
+        this->make<color>(move);
+        count += this->perft<opponent>(depth - 1);
+        this->unmake<color>();
+      };
+      return count;
+    };
+
+    u64_t perft(int depth) {
+      if (this->turn == color::white)
+        return this->perft<color::white>(depth);
+      else
+        return this->perft<color::black>(depth);
     };
 
     // get the outcome of the game
     outcome_t outcome() {
-      return this->outcome(!this->legal_moves().empty());
+      bool has_legal_moves = false;
+      if (this->turn == color::white)
+        has_legal_moves = this->generate<color::white, u64_t>();
+      else
+        has_legal_moves = this->generate<color::black, u64_t>();
+      return this->outcome(has_legal_moves);
     };
 
     // get the outcome of the game given you know if there are any legal moves
@@ -530,175 +592,77 @@ class Board {
       };
       return outcome::none;
     };
-    
-    // do a perft for a given color and generation type
-    template <gen_t gen, color_t color>
-    Stack<perft_t, MAX_MOVE_LENGTH> perft(int depth) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      Stack<perft_t, MAX_MOVE_LENGTH> perft_result;
-      auto moves = this->generate<color, ignore_outcome>();
-      for (auto move : moves) {
-        u64_t start = timing::nanoseconds();
-        this->make<color>(move);
-        u64_t count = perft<gen, opponent, true>(depth - 1);
-        this->unmake<color>();
-        u64_t end = timing::nanoseconds();
-        perft_result.push(perft_t {move, count, end - start});
-      };
-      return perft_result;
-    };
-
-    // do a perft for a given color and generation type but only count
-    template <gen_t gen, color_t color, bool count_only>
-    u64_t perft(int depth) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      if (depth == 0) return 1;
-      // if (depth == 1) return this->generate<gen, color, ignore_outcome>().size();
-      u64_t count = 0;
-      auto moves = this->generate<color, ignore_outcome>();
-      for (auto move : moves) {
-        this->make<color>(move);
-        count += perft<gen, opponent, true>(depth - 1);
-        this->unmake<color>();
-      };
-      return count;
-    };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // generate all moves for a given generation type and color
-    template <color_t color, bool check_outcome>
-    move_stack_t generate() {
-      move_stack_t moves;
-      moves.clear();
-
-      // important constants and variables
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t opponent_bishop = piece::compiletime::to_color(piece::bishop, opponent);
-      constexpr piece_t opponent_rook = piece::compiletime::to_color(piece::rook, opponent);
-      constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
-
-      update_attacks<opponent>();
-      update_pins<color>();
-      update_king<color>();
-
-      // add all possible moves to the move stack
-      bitboard_t checkers = this->attackers<opponent>(this->king_square[color]);
-      square_t checker_square = get_lsb(checkers);
-      if (checkers) {
-        if (popcount(checkers) > 1) {
-          this->add_king_moves<color>(moves);
-          return moves;
-        };
-        piece_t checker = this->pieces[checker_square];
-        bitboard_t evasion_target = (
-          bitboard(checker_square) |
-          ((this->king_bishop_attack[color] & attack<opponent_bishop>(checker_square, this->bitboards[color::none])) * (checker == opponent_bishop)) |
-          ((this->king_rook_attack[color] & attack<opponent_rook>(checker_square, this->bitboards[color::none])) * (checker == opponent_rook)) |
-          ((this->king_bishop_attack[color] & attack<opponent_bishop>(checker_square, this->bitboards[color::none])) * (checker == opponent_queen && (this->king_bishop_attack[color] & this->bitboards[opponent_queen]))) |
-          ((this->king_rook_attack[color] & attack<opponent_rook>(checker_square, this->bitboards[color::none])) * (checker == opponent_queen && (this->king_rook_attack[color] & this->bitboards[opponent_queen])))
-        );
-        this->add_king_moves<color>(moves);
-        this->add_enpassant_moves<color>(moves, checker_square, evasion_target);
-        this->add_pawn_push_moves<color>(moves, evasion_target);
-        this->add_pawn_capture_moves<color>(moves, evasion_target);
-        this->add_knight_moves<color>(moves, evasion_target);
-        this->add_bishop_moves<color>(moves, evasion_target);
-        this->add_rook_moves<color>(moves, evasion_target);
-        this->add_queen_moves<color>(moves, evasion_target);
-        return moves;
-      };
-      this->add_castling_moves<color>(moves);
-      this->add_king_moves<color>(moves);
-      this->add_enpassant_moves<color>(moves, checker_square);
-      this->add_pawn_push_moves<color>(moves);
-      this->add_pawn_capture_moves<color>(moves);
-      this->add_knight_moves<color>(moves);
-      this->add_bishop_moves<color>(moves);
-      this->add_rook_moves<color>(moves);
-      this->add_queen_moves<color>(moves);
-      return moves;
-    };
 
     // add legal castling moves to the move stack
-    template <color_t color>
-    void add_castling_moves(
-      move_stack_t& moves,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_castling_moves(T& moves) {
       bitboard_t occupancy = this->bitboards[color::none];
       if constexpr (color == color::white) {
-        moves.push(move::move(square::e1, square::g1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
-        moves.pop(
-          (this->attacks[color::black] & castling::white_king_attack_mask) ||
-          (occupancy & castling::white_king_piece_mask) ||
-          !(this->castling & castling::white_king) ||
-          !(get_bit(target, square::f1))
+        bool castle_king = (
+          !(this->attacks[color::black] & castling::white_king_attack_mask) &&
+          !(occupancy & castling::white_king_piece_mask) &&
+          (this->castling & castling::white_king)
         );
-        moves.push(move::move(square::e1, square::c1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
-        moves.pop(
-          (this->attacks[color::black] & castling::white_queen_attack_mask) ||
-          (occupancy & castling::white_queen_piece_mask) ||
-          !(this->castling & castling::white_queen) ||
-          !(get_bit(target, square::d1))
+        bool castle_queen = (
+          !(this->attacks[color::black] & castling::white_queen_attack_mask) &&
+          !(occupancy & castling::white_queen_piece_mask) &&
+          (this->castling & castling::white_queen)
         );
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          moves.push(move::move(square::e1, square::g1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
+          moves.pop(!castle_king);
+          moves.push(move::move(square::e1, square::c1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
+          moves.pop(!castle_queen);
+        } else {
+          moves += castle_king + castle_queen;
+        };
       } else if constexpr (color == color::black) {
-        moves.push(move::move(square::e8, square::g8, piece::black_king, piece::black_king, piece::none, false, false, true, false, false));
-        moves.pop(
-          (this->attacks[color::white] & castling::black_king_attack_mask) ||
-          (occupancy & castling::black_king_piece_mask) ||
-          !(this->castling & castling::black_king) ||
-          !(get_bit(target, square::f8))
+        bool castle_king = (
+          !(this->attacks[color::white] & castling::black_king_attack_mask) &&
+          !(occupancy & castling::black_king_piece_mask) &&
+          (this->castling & castling::black_king)
         );
-        moves.push(move::move(square::e8, square::c8, piece::black_king, piece::black_king, piece::none, false, false, true, false, false));
-        moves.pop(
-          (this->attacks[color::white] & castling::black_queen_attack_mask) ||
-          (occupancy & castling::black_queen_piece_mask) ||
-          !(this->castling & castling::black_queen) ||
-          !(get_bit(target, square::d8))
+        bool castle_queen = (
+          !(this->attacks[color::white] & castling::black_queen_attack_mask) &&
+          !(occupancy & castling::black_queen_piece_mask) &&
+          (this->castling & castling::black_queen)
         );
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          moves.push(move::move(square::e8, square::g8, piece::black_king, piece::black_king, piece::none, false, false, true, false, false));
+          moves.pop(!castle_king);
+          moves.push(move::move(square::e8, square::c8, piece::black_king, piece::black_king, piece::none, false, false, true, false, false));
+          moves.pop(!castle_queen);
+        } else {
+          moves += castle_king + castle_queen;
+        };
       };
     };
 
     // add legal king moves to the move stack
-    template <color_t color>
-    void add_king_moves(
-      move_stack_t& moves,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_king_moves(T& moves) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
       bitboard_t occupancy_color = this->bitboards[color];
-      bitboard_t possible_to = attack<king>(this->king_square[color]) & ~occupancy_color & ~this->attacks_no_king[opponent] & target;
-      while (possible_to) {
-        square_t to = pop_lsb(possible_to);
-        moves.push(move::move(this->king_square[color], to, king, king, this->pieces[to], false, false, false, false, false));
-      };
+      bitboard_t possible_to = attack<king>(this->king_square[color]) & ~occupancy_color & ~this->attacks_no_king[opponent];
+      if constexpr (typeid(T) == typeid(move_stack_t)) {
+        while (possible_to) {
+          square_t to = pop_lsb(possible_to);
+          moves.push(move::move(this->king_square[color], to, king, king, this->pieces[to], false, false, false, false, false));
+        };
+      } else {
+        moves += popcount(possible_to);
+      };      
     };
 
     // add legal enpassant moves to the move stack
-    template <color_t color>
-    void add_enpassant_moves(
-      move_stack_t& moves,
-      const square_t& checker_square,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_enpassant_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
       constexpr int enpassant_offset = (color == color::white ? 8 : -8);
+      square_t checker_square = get_lsb(this->attackers<opponent>(this->king_square[color]));
       if (this->enpassant == square::none) return;
       bitboard_t bishop_pinned_pawns = (
         this->bitboards[pawn] &
@@ -709,14 +673,19 @@ class Board {
       );
       while (bishop_pinned_pawns) {
         square_t from = pop_lsb(bishop_pinned_pawns);
-        moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false, false));
-        moves.pop(
-          !get_bit(this->king_bishop_ray[color], this->enpassant) ||
+        bool do_enpassant = (
+          (this->king_bishop_ray[color] & bitboard(this->enpassant)) &&
           (
-            !get_bit(target, this->enpassant) &&
-            (this->enpassant + enpassant_offset != checker_square)
+            (evasion_target & bitboard(this->enpassant)) ||
+            (this->enpassant + enpassant_offset == checker_square)
           )
         );
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false, false));
+          moves.pop(!do_enpassant);
+        } else {
+          moves += do_enpassant;
+        };
       };
       bitboard_t free_pawns = (
         this->bitboards[pawn] &
@@ -726,21 +695,23 @@ class Board {
         ~this->rook_pins[color]
       );
       while (free_pawns) {
-        square_t from = pop_lsb(free_pawns);
-        moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false, false));
-        moves.pop(
-          !get_bit(target, this->enpassant) &&
-          (this->enpassant + enpassant_offset != checker_square)
+        bool do_enpassant = (
+          (evasion_target & bitboard(this->enpassant)) ||
+          (this->enpassant + enpassant_offset == checker_square)
         );
+        square_t from = pop_lsb(free_pawns);
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          moves.push(move::move(from, this->enpassant, pawn, pawn, piece::none, false, true, false, false, false));
+          moves.pop(!do_enpassant);
+        } else {
+          moves += do_enpassant;
+        };
       };
     };
 
     // add legal pawn push moves to the move stack
-    template <color_t color>
-    void add_pawn_push_moves(
-      move_stack_t& moves,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_pawn_push_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
       constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
       constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
@@ -756,51 +727,54 @@ class Board {
       bitboard_t promoting_pawns;
       if constexpr (color == color::white) {
         pushable_pawns = (
-          (free_pawns & ~(occupancy << 8) & (target << 8) & ~bitboard::rank_7) |
-          (rook_pinned_pawns & ~(occupancy << 8) & (target << 8) & (this->king_rook_ray[color] << 8))
+          (free_pawns & ~(occupancy << 8) & (evasion_target << 8) & ~bitboard::rank_7) |
+          (rook_pinned_pawns & ~(occupancy << 8) & (evasion_target << 8) & (this->king_rook_ray[color] << 8))
         );
         doublepushable_pawns = (
-          (free_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (target << 16) & bitboard::rank_2) |
-          (rook_pinned_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (target << 16) & bitboard::rank_2 & (this->king_rook_ray[color] << 16))
+          (free_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (evasion_target << 16) & bitboard::rank_2) |
+          (rook_pinned_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (evasion_target << 16) & bitboard::rank_2 & (this->king_rook_ray[color] << 16))
         );
-        promoting_pawns = free_pawns & ~(occupancy << 8) & (target << 8) & bitboard::rank_7;
+        promoting_pawns = free_pawns & ~(occupancy << 8) & (evasion_target << 8) & bitboard::rank_7;
       } else if constexpr (color == color::black) {
         pushable_pawns = (
-          (free_pawns & ~(occupancy >> 8) & (target >> 8) & ~bitboard::rank_2) |
-          (rook_pinned_pawns & ~(occupancy >> 8) & (target >> 8) & (this->king_rook_ray[color] >> 8))
+          (free_pawns & ~(occupancy >> 8) & (evasion_target >> 8) & ~bitboard::rank_2) |
+          (rook_pinned_pawns & ~(occupancy >> 8) & (evasion_target >> 8) & (this->king_rook_ray[color] >> 8))
         );
         doublepushable_pawns = (
-          (free_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (target >> 16) & bitboard::rank_7) |
-          (rook_pinned_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (target >> 16) & bitboard::rank_7 & (this->king_rook_ray[color] >> 16))
+          (free_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (evasion_target >> 16) & bitboard::rank_7) |
+          (rook_pinned_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (evasion_target >> 16) & bitboard::rank_7 & (this->king_rook_ray[color] >> 16))
         );
-        promoting_pawns = free_pawns & ~(occupancy >> 8) & (target >> 8) & bitboard::rank_2;
+        promoting_pawns = free_pawns & ~(occupancy >> 8) & (evasion_target >> 8) & bitboard::rank_2;
       } else return;
-      while (pushable_pawns) {
-        square_t from = pop_lsb(pushable_pawns);
-        square_t to = from + push_offset;
-        moves.push(move::move(from, to, pawn, pawn, piece::none, false, false, false, false, false));
-      };
-      while (doublepushable_pawns) {
-        square_t from = pop_lsb(doublepushable_pawns);
-        square_t to = from + doublepush_offset;
-        moves.push(move::move(from, to, pawn, pawn, piece::none, true, false, false, false, false));
-      };
-      while (promoting_pawns) {
-        square_t from = pop_lsb(promoting_pawns);
-        square_t to = from + push_offset;
-        moves.push(move::move(from, to, pawn, knight, piece::none, false, false, false, true, false));
-        moves.push(move::move(from, to, pawn, bishop, piece::none, false, false, false, true, false));
-        moves.push(move::move(from, to, pawn, rook, piece::none, false, false, false, true, false));
-        moves.push(move::move(from, to, pawn, queen, piece::none, false, false, false, true, false));
+      if constexpr (typeid(T) == typeid(move_stack_t)) {
+        while (pushable_pawns) {
+          square_t from = pop_lsb(pushable_pawns);
+          square_t to = from + push_offset;
+          moves.push(move::move(from, to, pawn, pawn, piece::none, false, false, false, false, false));
+        };
+        while (doublepushable_pawns) {
+          square_t from = pop_lsb(doublepushable_pawns);
+          square_t to = from + doublepush_offset;
+          moves.push(move::move(from, to, pawn, pawn, piece::none, true, false, false, false, false));
+        };
+        while (promoting_pawns) {
+          square_t from = pop_lsb(promoting_pawns);
+          square_t to = from + push_offset;
+          moves.push(move::move(from, to, pawn, knight, piece::none, false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, bishop, piece::none, false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, rook, piece::none, false, false, false, true, false));
+          moves.push(move::move(from, to, pawn, queen, piece::none, false, false, false, true, false));
+        };
+      } else {
+        moves += popcount(pushable_pawns);
+        moves += popcount(doublepushable_pawns);
+        moves += popcount(promoting_pawns) << 2;
       };
     };
 
     // add legal pawn capture moves to the move stack
-    template <color_t color>
-    void add_pawn_capture_moves(
-      move_stack_t& moves,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_pawn_capture_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
       constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
@@ -817,156 +791,191 @@ class Board {
       bitboard_t not_promoting_bishop_pinned_pawns = bishop_pinned_pawns & ~promotion_rank;
       while (promoting_free_pawns) {
         square_t from = pop_lsb(promoting_free_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, false));
-          moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, false));
-          moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, false));
-          moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, false));
+        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, false));
+            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, false));
+            moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, false));
+            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, false));
+          };
+        } else {
+          moves += popcount(possible_to) << 2;
         };
       };
       while (not_promoting_free_pawns) {
         square_t from = pop_lsb(not_promoting_free_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
       while (promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, false));
-          moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, false));
-          moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, false));
-          moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, false));
+        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, false));
+            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, false));
+            moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, false));
+            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, false));
+          };
+        } else {
+          moves += popcount(possible_to) << 2;
         };
       };
-
       while (not_promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(not_promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
     };
 
     // add legal knight moves to the move stack
-    template <color_t color>
-    void add_knight_moves(
-      move_stack_t& moves,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_knight_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
       bitboard_t occupancy_color = this->bitboards[color];
       bitboard_t free_knights = this->bitboards[knight] & ~this->bishop_pins[color] & ~this->rook_pins[color];
       while (free_knights) {
         square_t from = pop_lsb(free_knights);
-        bitboard_t possible_to = attack<knight>(from) & ~occupancy_color & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<knight>(from) & ~occupancy_color & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
     };
 
     // add legal bishop moves to the move stack
-    template <color_t color>
-    void add_bishop_moves(
-      move_stack_t& moves,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_bishop_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
       bitboard_t occupancy = this->bitboards[color::none];
       bitboard_t occupancy_color = this->bitboards[color];
       bitboard_t bishop_pinned_bishops = this->bitboards[bishop] & this->bishop_pins[color] & ~this->rook_pins[color];
       while (bishop_pinned_bishops) {
         square_t from = pop_lsb(bishop_pinned_bishops);
-        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
       bitboard_t free_bishops = this->bitboards[bishop] & ~this->bishop_pins[color] & ~this->rook_pins[color];
       while (free_bishops) {
         square_t from = pop_lsb(free_bishops);
-        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
     };
 
     // add legal rook moves to the move stack
-    template <color_t color>
-    void add_rook_moves(
-      move_stack_t& moves,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_rook_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
       bitboard_t occupancy = this->bitboards[color::none];
       bitboard_t occupancy_color = this->bitboards[color];
       bitboard_t rook_pinned_rooks = this->bitboards[rook] & ~this->bishop_pins[color] & this->rook_pins[color];
       while (rook_pinned_rooks) {
         square_t from = pop_lsb(rook_pinned_rooks);
-        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
       bitboard_t free_rooks = this->bitboards[rook] & ~this->bishop_pins[color] & ~this->rook_pins[color];
       while (free_rooks) {
         square_t from = pop_lsb(free_rooks);
-        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
     };
 
     // add legal queen moves to the move stack
-    template <color_t color>
-    void add_queen_moves(
-      move_stack_t& moves,
-      const bitboard_t& target=bitboard::full
-    ) {
+    template <color_t color, typename T=move_stack_t>
+    void add_queen_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
       bitboard_t occupancy = this->bitboards[color::none];
       bitboard_t occupancy_color = this->bitboards[color];
       bitboard_t bishop_pinned_queens = this->bitboards[queen] & this->bishop_pins[color] & ~this->rook_pins[color];
       while (bishop_pinned_queens) {
         square_t from = pop_lsb(bishop_pinned_queens);
-        bitboard_t possible_to = attack<piece::bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<piece::bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
       bitboard_t rook_pinned_queens = this->bitboards[queen] & ~this->bishop_pins[color] & this->rook_pins[color];
       while (rook_pinned_queens) {
         square_t from = pop_lsb(rook_pinned_queens);
-        bitboard_t possible_to = attack<piece::rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<piece::rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
       bitboard_t free_queens = this->bitboards[queen] & ~this->bishop_pins[color] & ~this->rook_pins[color];
       while (free_queens) {
         square_t from = pop_lsb(free_queens);
-        bitboard_t possible_to = attack<piece::queen>(from, occupancy) & ~occupancy_color & target;
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+        bitboard_t possible_to = attack<piece::queen>(from, occupancy) & ~occupancy_color & evasion_target;
+        if constexpr (typeid(T) == typeid(move_stack_t)) {
+          while (possible_to) {
+            square_t to = pop_lsb(possible_to);
+            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+          };
+        } else {
+          moves += popcount(possible_to);
         };
       };
     };

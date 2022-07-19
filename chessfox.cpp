@@ -5,6 +5,7 @@
 #include "board.cpp"
 #include "constants.cpp"
 #include "display.cpp"
+#include "evaluation.cpp"
 #include "macros.cpp"
 #include "magic.cpp"
 #include "moves.cpp"
@@ -25,15 +26,15 @@ void do_perft(std::string fen, int depth) {
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
   cout << "\tTotal:\t" << count << endl;
-  cout << "\tTime:\t" << (end - start) / 1e9 << endl;
+  cout << "\tTime:\t" << (end - start) / 1e9 << "s" << endl;
   cout << "\tMNps:\t" << 1000 * (float)count / (float)(end - start) << endl;
 };
 
 int main() {
-  do_perft(fen::startpos, 6);
-  do_perft(fen::pos2, 5);
-  do_perft(fen::pos3, 7);
-  do_perft(fen::pos4, 5);
+  do_perft(fen::startpos, 7);
+  do_perft(fen::pos2, 6);
+  do_perft(fen::pos3, 8);
+  do_perft(fen::pos4, 6);
   do_perft(fen::pos5, 5);
-  do_perft(fen::pos6, 5);
+  do_perft(fen::pos6, 6);
 };

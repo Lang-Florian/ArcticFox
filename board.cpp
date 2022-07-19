@@ -14,6 +14,7 @@
 #include "attack_rays.cpp"
 #include "attacks.cpp"
 #include "constants.cpp"
+#include "hashtable.cpp"
 #include "macros.cpp"
 #include "moves.cpp"
 #include "stack.cpp"
@@ -54,6 +55,7 @@ class Board {
     std::array<bitboard_t, 2> king_rook_ray;
     std::array<bitboard_t, 2> king_bishop_attack;
     std::array<bitboard_t, 2> king_rook_attack;
+    PerftHashTable perft_hash_table;
 
     // initialize the board
     Board(std::string fen=fen::startpos) {
@@ -529,25 +531,31 @@ class Board {
       constexpr color_t opponent = color::compiletime::opponent(color);
       if (depth == 0) {
         return 1;
-      // } else if (depth == 1) {
-      //   return this->generate<color, int>();
-      // } else if (depth == 2) {
-      //   u64_t count = 0;
-      //   auto moves = this->generate<color>();
-      //   for (auto move : moves) {
-      //     this->make<color>(move);
-      //     count += this->generate<opponent, int>();
-      //     this->unmake<color>();
-      //   };
-      //   return count;
+      } else if (depth == 1) {
+        u64_t count = this->generate<color, int>();
+        perft_hash_table.set(this->zobrist.hash, this->zobrist.validation, 1, count);
+        return count;
+      } else if (depth == 2) {
+        u64_t count = 0;
+        auto moves = this->generate<color>();
+        for (auto move : moves) {
+          this->make<color>(move);
+          count += this->generate<opponent, int>();
+          this->unmake<color>();
+        };
+        perft_hash_table.set(this->zobrist.hash, this->zobrist.validation, 2, count);
+        return count;
       };
-      u64_t count = 0;
+      s64_t count = perft_hash_table.get(this->zobrist.hash, this->zobrist.validation, depth);
+      if (count >= 0) return count;
+      count = 0;
       auto moves = this->generate<color>();
       for (auto move : moves) {
         this->make<color>(move);
         count += this->perft<opponent>(depth - 1);
         this->unmake<color>();
       };
+      perft_hash_table.set(this->zobrist.hash, this->zobrist.validation, depth, count);
       return count;
     };
 

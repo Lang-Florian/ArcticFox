@@ -73,7 +73,6 @@ void pretty_print(Board board) {
   };
   std::cout << std::endl << "\t   A  B  C  D  E  F  G  H";
   std::cout << std::endl << "\tZOBRIST HASH:\t\t"     << std::hex << std::showbase << std::uppercase << board.zobrist.hash << std::dec;
-  std::cout << std::endl << "\tZOBRIST VALIDATION:\t" << std::hex << std::showbase << std::uppercase << board.zobrist.validation << std::dec;
   std::cout << std::endl << "\tTURN:\t\t\t"           << color::to_string(board.turn);
   std::cout << std::endl << "\tCASTLING:\t\t"         << castling::to_string(board.castling);
   std::cout << std::endl << "\tEN PASSANT:\t\t"       << square::to_string(board.enpassant);

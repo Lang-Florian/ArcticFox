@@ -29,7 +29,6 @@ struct undo_t {
   square_t enpassant;
   u16_t halfmove_clock;
   hash_t hash;
-  hash_t validation;
 };
  
 
@@ -203,7 +202,6 @@ class Board {
         this->enpassant,
         this->halfmove_clock,
         this->zobrist.hash,
-        this->zobrist.validation,
       });
 
       // remove castling and enpassant square from the hash
@@ -297,7 +295,7 @@ class Board {
       };
 
       // restore hash
-      this->zobrist.set(undo.hash, undo.validation);
+      this->zobrist.set(undo.hash);
     };
 
     void make(move_t move) {
@@ -533,7 +531,7 @@ class Board {
         return 1;
       } else if (depth == 1) {
         u64_t count = this->generate<color, int>();
-        perft_hash_table.set(this->zobrist.hash, this->zobrist.validation, 1, count);
+        this->perft_hash_table.set(this->zobrist.hash, 1, count);
         return count;
       } else if (depth == 2) {
         u64_t count = 0;
@@ -543,12 +541,11 @@ class Board {
           count += this->generate<opponent, int>();
           this->unmake<color>();
         };
-        perft_hash_table.set(this->zobrist.hash, this->zobrist.validation, 2, count);
+        this->perft_hash_table.set(this->zobrist.hash, 2, count);
         return count;
       };
-      if (perft_hash_table.contains(this->zobrist.hash, this->zobrist.validation, depth)) {
-        return perft_hash_table.get(this->zobrist.hash);
-      };
+      if (this->perft_hash_table.contains(this->zobrist.hash, depth))
+        return this->perft_hash_table.get(this->zobrist.hash);
       u64_t count = 0;
       auto moves = this->generate<color>();
       for (auto move : moves) {
@@ -556,7 +553,7 @@ class Board {
         count += this->perft<opponent>(depth - 1);
         this->unmake<color>();
       };
-      perft_hash_table.set(this->zobrist.hash, this->zobrist.validation, depth, count);
+      this->perft_hash_table.set(this->zobrist.hash, depth, count);
       return count;
     };
 

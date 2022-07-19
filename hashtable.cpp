@@ -12,33 +12,33 @@
 
 
 struct PerftHashTableEntry {
-  u64_t validation=0;
-  int depth=0;
-  u64_t count=0;
+  hash_t hash;
+  int depth;
+  u64_t count;
 };
 
 
 class PerftHashTable {
   private:
     PerftHashTableEntry table[1 << 16];
-    u64_t mask = (1 << 16) - 1;
+    hash_t mask = (1 << 16) - 1;
 
   public:
-    u64_t get(u64_t hash) {
+    u64_t get(hash_t hash) {
       int index = hash & this->mask;
       return table[index].count;
     };
 
-    void set(u64_t hash, u64_t validation, int depth, u64_t count) {
+    void set(hash_t hash, int depth, u64_t count) {
       int index = hash & this->mask;
-      table[index].validation = validation;
+      table[index].hash = hash;
       table[index].depth = depth;
       table[index].count = count;
     };
 
-    bool contains(u64_t hash, u64_t validation, int depth) {
+    bool contains(hash_t hash, int depth) {
       int index = hash & this->mask;
-      return table[index].validation == validation && table[index].depth == depth;
+      return table[index].hash == hash && table[index].depth == depth;
     };
 };
 

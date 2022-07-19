@@ -546,9 +546,10 @@ class Board {
         perft_hash_table.set(this->zobrist.hash, this->zobrist.validation, 2, count);
         return count;
       };
-      s64_t count = perft_hash_table.get(this->zobrist.hash, this->zobrist.validation, depth);
-      if (count >= 0) return count;
-      count = 0;
+      if (perft_hash_table.contains(this->zobrist.hash, this->zobrist.validation, depth)) {
+        return perft_hash_table.get(this->zobrist.hash);
+      };
+      u64_t count = 0;
       auto moves = this->generate<color>();
       for (auto move : moves) {
         this->make<color>(move);

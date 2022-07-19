@@ -24,12 +24,9 @@ class PerftHashTable {
     u64_t mask = (1 << 16) - 1;
 
   public:
-    s64_t get(u64_t hash, u64_t validation, int depth) {
+    u64_t get(u64_t hash) {
       int index = hash & this->mask;
-      if (table[index].validation == validation && table[index].depth == depth) {
-        return table[index].count;
-      };
-      return -1;
+      return table[index].count;
     };
 
     void set(u64_t hash, u64_t validation, int depth, u64_t count) {
@@ -37,6 +34,11 @@ class PerftHashTable {
       table[index].validation = validation;
       table[index].depth = depth;
       table[index].count = count;
+    };
+
+    bool contains(u64_t hash, u64_t validation, int depth) {
+      int index = hash & this->mask;
+      return table[index].validation == validation && table[index].depth == depth;
     };
 };
 

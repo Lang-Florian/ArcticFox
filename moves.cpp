@@ -7,6 +7,8 @@
 #define __MOVES__MODULE__
 
 
+#include <string>
+
 #include "constants.cpp"
 #include "types.cpp"
 

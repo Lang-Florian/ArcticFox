@@ -47,7 +47,7 @@ std::string escape() {
 
 // print a bitboard
 void pretty_print(bitboard_t bitboard) {
-  for (square_t square = 0; square < 64; square++) {
+  for (auto square : square::all_squares) {
     if (square % 8 == 0) {
       if (square != 0) std::cout << std::endl;
       std::cout <<  "\t" + std::to_string(8 - square / 8) + " ";
@@ -62,7 +62,7 @@ void pretty_print(bitboard_t bitboard) {
 
 // print a board
 void pretty_print(Board board) {
-  for (square_t square = 0; square < 64; square++) {
+  for (auto square : square::all_squares) {
     if (square % 8 == 0) {
       if (square != 0) std::cout << std::endl;
       std::cout <<  "\t" + std::to_string(8 - square / 8) + " ";
@@ -72,15 +72,16 @@ void pretty_print(Board board) {
     std::cout << escape();
   };
   std::cout << std::endl << "\t   A  B  C  D  E  F  G  H";
-  std::cout << std::endl << "\tZOBRIST HASH:\t"   << std::hex << std::showbase << std::uppercase << board.zobrist.hash << std::dec;
-  std::cout << std::endl << "\tTURN:\t\t"         << color::to_string(board.turn);
-  std::cout << std::endl << "\tCASTLING:\t"       << castling::to_string(board.castling);
-  std::cout << std::endl << "\tEN PASSANT:\t"     << square::to_string(board.enpassant);
-  std::cout << std::endl << "\tHALFMOVE CLOCK:\t" << std::to_string(board.halfmove_clock);
-  std::cout << std::endl << "\tFULLMOVE CLOCK:\t" << std::to_string(board.fullmove_clock);
-  std::cout << std::endl << "\tFEN:\t\t"          << board.fen();
-  std::cout << std::endl << "\tOUTCOME:\t"        << outcome::to_string(board.outcome());
-  std::cout << std::endl << "\tMOVES MADE:\t";
+  std::cout << std::endl << "\tZOBRIST HASH:\t\t"     << std::hex << std::showbase << std::uppercase << board.zobrist.hash << std::dec;
+  std::cout << std::endl << "\tZOBRIST VALIDATION:\t" << std::hex << std::showbase << std::uppercase << board.zobrist.validation << std::dec;
+  std::cout << std::endl << "\tTURN:\t\t\t"           << color::to_string(board.turn);
+  std::cout << std::endl << "\tCASTLING:\t\t"         << castling::to_string(board.castling);
+  std::cout << std::endl << "\tEN PASSANT:\t\t"       << square::to_string(board.enpassant);
+  std::cout << std::endl << "\tHALFMOVE CLOCK:\t\t"   << std::to_string(board.halfmove_clock);
+  std::cout << std::endl << "\tFULLMOVE CLOCK:\t\t"   << std::to_string(board.fullmove_clock);
+  std::cout << std::endl << "\tFEN:\t\t\t"            << board.fen();
+  std::cout << std::endl << "\tOUTCOME:\t\t"          << outcome::to_string(board.outcome());
+  std::cout << std::endl << "\tMOVES MADE:\t\t";
   for (undo_t undo : board.history) {
     std::cout << move::uci(undo.move) + " ";
   };

@@ -25,7 +25,7 @@
 namespace attack_tables {
   constexpr std::array<std::array<bitboard_t, 2>, 64> pawn = {[]() constexpr {
     std::array<std::array<bitboard_t, 2>, 64> pawn{bitboard::none};
-    for (square_t square = 0; square < 64; square++) {
+    for (auto square : square::all_squares) {
       pawn[square][color::white] = ((bitboard(square) >> 9) & ~bitboard::file_h) | ((bitboard(square) >> 7) & ~bitboard::file_a);
       pawn[square][color::black] = ((bitboard(square) << 9) & ~bitboard::file_a) | ((bitboard(square) << 7) & ~bitboard::file_h);
     };
@@ -34,7 +34,7 @@ namespace attack_tables {
 
   constexpr std::array<bitboard_t, 64> knight= {[]() constexpr {
     std::array<bitboard_t, 64> knight{bitboard::none};
-    for (square_t square = 0; square < 64; square++) {
+    for (auto square : square::all_squares) {
       knight[square] = ((bitboard(square) >>  6) & ~bitboard::file_a & ~bitboard::file_b & ~bitboard::rank_1) |
                        ((bitboard(square) <<  6) & ~bitboard::file_g & ~bitboard::file_h & ~bitboard::rank_8) |
                        ((bitboard(square) >> 10) & ~bitboard::file_g & ~bitboard::file_h & ~bitboard::rank_1) |
@@ -49,7 +49,7 @@ namespace attack_tables {
 
   constexpr std::array<bitboard_t, 64> king = {[]() constexpr {
     std::array<bitboard_t, 64> king{bitboard::none};
-    for (square_t square = 0; square < 64; square++) {
+    for (auto square : square::all_squares) {
       king[square] = ((bitboard(square) >> 1) & ~bitboard::file_h) |
                      ((bitboard(square) << 1) & ~bitboard::file_a) |
                      ((bitboard(square) >> 8) & ~bitboard::rank_1) |

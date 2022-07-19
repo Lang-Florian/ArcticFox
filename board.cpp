@@ -28,6 +28,7 @@ struct undo_t {
   square_t enpassant;
   u16_t halfmove_clock;
   hash_t hash;
+  hash_t validation;
 };
  
 
@@ -116,7 +117,7 @@ class Board {
     std::string fen() {
       std::string string = "";
       int index = 0;
-      for (square_t square = 0; square < 64; square++) {
+      for (auto square : square::all_squares) {
         if (square % 8 == 0 && square != 0) {
           if (index != 0) {
             string += std::to_string(index);
@@ -200,6 +201,7 @@ class Board {
         this->enpassant,
         this->halfmove_clock,
         this->zobrist.hash,
+        this->zobrist.validation,
       });
 
       // remove castling and enpassant square from the hash
@@ -293,7 +295,7 @@ class Board {
       };
 
       // restore hash
-      this->zobrist.set(undo.hash);
+      this->zobrist.set(undo.hash, undo.validation);
     };
 
     void make(move_t move) {
@@ -528,13 +530,13 @@ class Board {
       if (depth == 0) {
         return 1;
       // } else if (depth == 1) {
-      //   return this->generate<color, move_stack_t>().size();
+      //   return this->generate<color, int>();
       // } else if (depth == 2) {
       //   u64_t count = 0;
       //   auto moves = this->generate<color>();
       //   for (auto move : moves) {
       //     this->make<color>(move);
-      //     count += this->generate<opponent, move_stack_t>().size();
+      //     count += this->generate<opponent, int>();
       //     this->unmake<color>();
       //   };
       //   return count;

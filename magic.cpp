@@ -29,7 +29,7 @@ namespace magic {
   namespace incomplete_attack_ray {
     constexpr std::array<bitboard_t, 64> bishop = {[]() constexpr {
       std::array<bitboard_t, 64> bishop{0ULL};
-      for (square_t square = 0; square < 64; square++) {
+      for (auto square : square::all_squares) {
         bishop[square] = 0ULL;
         for (int i = 1; i < square % 8 && i < square / 8; i++)
           bishop[square] |= (bitboard(square) >> (9 * i));
@@ -45,7 +45,7 @@ namespace magic {
 
     constexpr std::array<bitboard_t, 64> rook = {[]() constexpr {
       std::array<bitboard_t, 64> rook{0ULL};
-      for (square_t square = 0; square < 64; square++) {
+      for (auto square : square::all_squares) {
         rook[square] = 0ULL;
         for (int i = 1; i < square % 8; i++)
           rook[square] |= (bitboard(square) >> i);
@@ -263,7 +263,7 @@ namespace magic {
 	// generate the magic table from the magics
 	constexpr std::array<bitboard_t, 88507> table = {[]() constexpr {
 		std::array<bitboard_t, 88507> table{bitboard::none};
-		for (square_t square = 0; square < 64; square++) {
+		for (auto square : square::all_squares) {
 			bitboard_t bishop_attack_ray = incomplete_attack_ray::bishop[square];
 			int occupancy_bound_bishop = 1 << popcount(bishop_attack_ray);
 			for (int occupancy_index = 0; occupancy_index < occupancy_bound_bishop; occupancy_index++) {

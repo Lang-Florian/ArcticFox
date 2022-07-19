@@ -9,6 +9,7 @@
 
 #include <array>
 
+#include "constants.cpp"
 #include "macros.cpp"
 #include "types.cpp"
 
@@ -24,7 +25,7 @@
 namespace attack_ray {
   constexpr std::array<bitboard_t, 64> bishop = {[]() constexpr {
     std::array<bitboard_t, 64> bishop{0ULL};
-    for (square_t square = 0; square < 64; square++) {
+    for (auto square : square::all_squares) {
       bishop[square] = 0ULL;
       for (int i = 1; i <= square % 8 && i <= square / 8; i++)
         bishop[square] |= (bitboard(square) >> (9 * i));
@@ -40,7 +41,7 @@ namespace attack_ray {
 
   constexpr std::array<bitboard_t, 64> rook = {[]() constexpr {
     std::array<bitboard_t, 64> rook{0ULL};
-    for (square_t square = 0; square < 64; square++) {
+    for (auto square : square::all_squares) {
       rook[square] = 0ULL;
       for (int i = 1; i <= square % 8; i++)
         rook[square] |= (bitboard(square) >> i);

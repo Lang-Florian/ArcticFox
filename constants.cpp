@@ -394,8 +394,4 @@ enum get_t {
 };
 
 
-constexpr bool ignore_outcome = false;
-constexpr bool include_outcome = true;
-
-
 #endif // __CONSTANTS__MODULE__

@@ -29,17 +29,6 @@ struct undo_t {
   u16_t halfmove_clock;
   hash_t hash;
 };
-
-
-struct perft_t {
-  move_t move;
-  u64_t count;
-  u64_t time;
-  
-  float mnps() {
-    return 1000 * (float)count / (float)time;
-  };
-};
  
 
 class Board {
@@ -538,17 +527,17 @@ class Board {
       constexpr color_t opponent = color::compiletime::opponent(color);
       if (depth == 0) {
         return 1;
-      } else if (depth == 1) {
-        return this->generate<color, u64_t>();
-      } else if (depth == 2) {
-        u64_t count = 0;
-        auto moves = this->generate<color>();
-        for (auto move : moves) {
-          this->make<color>(move);
-          count += this->generate<opponent, u64_t>();
-          this->unmake<color>();
-        };
-        return count;
+      // } else if (depth == 1) {
+      //   return this->generate<color, move_stack_t>().size();
+      // } else if (depth == 2) {
+      //   u64_t count = 0;
+      //   auto moves = this->generate<color>();
+      //   for (auto move : moves) {
+      //     this->make<color>(move);
+      //     count += this->generate<opponent, move_stack_t>().size();
+      //     this->unmake<color>();
+      //   };
+      //   return count;
       };
       u64_t count = 0;
       auto moves = this->generate<color>();

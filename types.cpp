@@ -34,7 +34,7 @@
 #define bitboard_t u64_t
 #define castling_t u8_t
 #define color_t u8_t
-#define eval_t int
+#define eval_t i16_t
 #define gen_t u8_t
 #define hash_t u64_t
 #define move_t u32_t

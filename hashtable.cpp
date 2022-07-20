@@ -11,35 +11,18 @@
 #include "types.cpp"
 
 
-struct PerftHashTableEntry {
+struct HashTableEntry {
   hash_t hash;
-  int depth;
-  u64_t count;
 };
 
 
-class PerftHashTable {
+class HashTable {
   private:
-    PerftHashTableEntry table[1 << 16];
-    hash_t mask = (1 << 16) - 1;
+    HashTableEntry table[HASH_TABLE_SIZE];
+    hash_t mask = HASH_TABLE_SIZE - 1;
 
   public:
-    u64_t get(hash_t hash) {
-      int index = hash & this->mask;
-      return table[index].count;
-    };
 
-    void set(hash_t hash, int depth, u64_t count) {
-      int index = hash & this->mask;
-      table[index].hash = hash;
-      table[index].depth = depth;
-      table[index].count = count;
-    };
-
-    bool contains(hash_t hash, int depth) {
-      int index = hash & this->mask;
-      return table[index].hash == hash && table[index].depth == depth;
-    };
 };
 
 

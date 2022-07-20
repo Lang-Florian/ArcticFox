@@ -7,6 +7,7 @@
 #define __CONSTANTS__MODULE__
 
 
+#include <array>
 #include <string>
 
 #include "macros.cpp"
@@ -15,6 +16,7 @@
 
 #define MAX_GAME_LENGTH 512
 #define MAX_MOVE_LENGTH 512
+#define HASH_TABLE_SIZE (1 << 20)
 
 
 /*

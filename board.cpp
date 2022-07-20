@@ -54,7 +54,6 @@ class Board {
     std::array<bitboard_t, 2> king_rook_ray;
     std::array<bitboard_t, 2> king_bishop_attack;
     std::array<bitboard_t, 2> king_rook_attack;
-    PerftHashTable perft_hash_table;
 
     // initialize the board
     Board(std::string fen=fen::startpos) {
@@ -531,7 +530,6 @@ class Board {
         return 1;
       } else if (depth == 1) {
         u64_t count = this->generate<color, int>();
-        this->perft_hash_table.set(this->zobrist.hash, 1, count);
         return count;
       } else if (depth == 2) {
         u64_t count = 0;
@@ -541,11 +539,8 @@ class Board {
           count += this->generate<opponent, int>();
           this->unmake<color>();
         };
-        this->perft_hash_table.set(this->zobrist.hash, 2, count);
         return count;
       };
-      if (this->perft_hash_table.contains(this->zobrist.hash, depth))
-        return this->perft_hash_table.get(this->zobrist.hash);
       u64_t count = 0;
       auto moves = this->generate<color>();
       for (auto move : moves) {
@@ -553,7 +548,6 @@ class Board {
         count += this->perft<opponent>(depth - 1);
         this->unmake<color>();
       };
-      this->perft_hash_table.set(this->zobrist.hash, depth, count);
       return count;
     };
 

@@ -36,7 +36,7 @@
 #define color_t u8_t
 #define eval_t int
 #define gen_t u8_t
-#define hash_t u128_t
+#define hash_t u64_t
 #define move_t u32_t
 #define move_stack_t Stack<move_t, MAX_MOVE_LENGTH>
 #define outcome_t u8_t

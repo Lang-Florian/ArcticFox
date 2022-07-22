@@ -109,8 +109,8 @@ bitboard_t attack(square_t square, bitboard_t occupancy=bitboard::none) {
 
 
 constexpr bitboard_t (*(attack_array[32]))(square_t, bitboard_t) = {
-  attack<0>, attack<1>, attack<2>, attack<3>, attack<4>, attack<5>, attack<6>, attack<7>,
-  attack<8>, attack<9>, attack<10>, attack<11>, attack<12>, attack<13>, attack<14>, attack<15>,
+   attack<0>,  attack<1>,  attack<2>,  attack<3>,  attack<4>,  attack<5>,  attack<6>,  attack<7>,
+   attack<8>,  attack<9>, attack<10>, attack<11>, attack<12>, attack<13>, attack<14>, attack<15>,
   attack<16>, attack<17>, attack<18>, attack<19>, attack<20>, attack<21>, attack<22>, attack<23>,
   attack<24>, attack<25>, attack<26>, attack<27>, attack<28>, attack<29>, attack<30>, attack<31>
 };

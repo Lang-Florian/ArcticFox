@@ -31,10 +31,48 @@ void do_perft(std::string fen, int depth) {
 };
 
 int main() {
-  do_perft(fen::startpos, 7);
-  do_perft(fen::pos2, 6);
-  do_perft(fen::pos3, 8);
-  do_perft(fen::pos4, 6);
-  do_perft(fen::pos5, 5);
-  do_perft(fen::pos6, 6);
+  // do_perft(fen::startpos, 7);
+  // do_perft(fen::pos2, 6);
+  // do_perft(fen::pos3, 8);
+  // do_perft(fen::pos4, 6);
+  // do_perft(fen::pos5, 5);
+  // do_perft(fen::pos6, 6);
+  Board board;
+  search_result_t result;
+
+  board.set_fen(fen::startpos);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.eval << endl;
+  cout << move::uci(result.move) << endl << endl;
+  
+  board.set_fen(fen::pos2);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.eval << endl;
+  cout << move::uci(result.move) << endl << endl;
+  
+  board.set_fen(fen::pos3);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.eval << endl;
+  cout << move::uci(result.move) << endl << endl;
+  
+  board.set_fen(fen::pos4);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.eval << endl;
+  cout << move::uci(result.move) << endl << endl;
+  
+  board.set_fen(fen::pos5);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.eval << endl;
+  cout << move::uci(result.move) << endl << endl;
+  
+  board.set_fen(fen::pos6);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.eval << endl;
+  cout << move::uci(result.move) << endl << endl;
 };

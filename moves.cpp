@@ -118,6 +118,8 @@ namespace move {
       (from(move) == square::e8 || from(move) == square::a8 || to(move) == square::a8) << 3
     );
   };
+
+  move_t none = (move_t)0;
 };
 
 

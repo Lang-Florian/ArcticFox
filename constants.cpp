@@ -16,7 +16,7 @@
 
 #define MAX_GAME_LENGTH 512
 #define MAX_MOVE_LENGTH 512
-#define HASH_TABLE_SIZE (1 << 20)
+#define HASHTABLE_SIZE (1 << 18)
 
 
 /*
@@ -367,6 +367,7 @@ namespace outcome {
   enum : outcome_t {
     none =                  0b00000000,
 
+    checkmate =             0b00000100,
     checkmate_white =       0b00000100,
     checkmate_black =       0b00000101,
 

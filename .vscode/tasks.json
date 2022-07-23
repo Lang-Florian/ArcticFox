@@ -16,7 +16,8 @@
         "-march=native",
         "-flto",
         "-fno-signed-zeros",
-        "-funroll-loops"
+        "-funroll-loops",
+        "-mcmodel=medium",
       ],
       "options": {
         "cwd": "${fileDirname}"

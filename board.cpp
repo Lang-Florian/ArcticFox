@@ -86,11 +86,11 @@ class Board {
       int moves_opponent = this->generate<opponent, legal, int>();
       eval_t eval = 10;
       float endgame_factor = 1 - (float)(
-        popcount(this->bitboards[piece::pawn]) +
-        3 * popcount(this->bitboards[piece::knight]) +
-        3 * popcount(this->bitboards[piece::bishop]) +
-        5 * popcount(this->bitboards[piece::rook]) +
-        9 * popcount(this->bitboards[piece::queen])
+        (popcount(this->bitboards[piece::pawn])) +
+        (popcount(this->bitboards[piece::knight]) << 1) +
+        (popcount(this->bitboards[piece::bishop]) << 1) +
+        (popcount(this->bitboards[piece::rook]) << 2) +
+        (popcount(this->bitboards[piece::queen]) << 3)
       ) / (float)78;
       for (piece_t piece : pieces) {
         bitboard_t piece_bitboard = this->bitboards[piece];
@@ -153,10 +153,16 @@ class Board {
         };
       };
       move_stack_t moves = this->generate<color, legal, move_stack_t>();
-      moves.sort();
+      moves.sort([](move_t move1, move_t move2) {
+        return move::mvv_lva_key(move1) < move::mvv_lva_key(move2);
+      });
+      // moves.sort();
+      if (moves.contains(entry.move)) {
+        moves.push(entry.move);
+      };
       moves.reverse();
       eval_t eval = eval::mate_opponent;
-      for (move_t move : moves) {
+        for (move_t move : moves) {
         this->make(move);
         search_result_t search_result = this->search<opponent>(depth - 1, -beta, -alpha, tbhits, nodes);
         this->unmake();

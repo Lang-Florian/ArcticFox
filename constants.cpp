@@ -16,7 +16,7 @@
 
 #define MAX_GAME_LENGTH 512
 #define MAX_MOVE_LENGTH 512
-#define HASHTABLE_SIZE (1 << 18)
+#define TABLE_SIZE_LOG2 30
 
 
 /*

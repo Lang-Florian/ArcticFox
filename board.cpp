@@ -16,11 +16,11 @@
 #include "attacks.cpp"
 #include "constants.cpp"
 #include "evaluation.cpp"
-#include "hashtable.cpp"
 #include "macros.cpp"
 #include "moves.cpp"
 #include "stack.cpp"
 #include "time.cpp"
+#include "transposition.cpp"
 #include "types.cpp"
 #include "zobrist.cpp"
 
@@ -33,8 +33,9 @@ struct undo_t {
   hash_t hash;
 };
 
+
 struct search_result_t {
-  move_t move;
+  continuation_t continuation;
   eval_t eval;
 };
 
@@ -50,7 +51,6 @@ class Board {
     u16_t fullmove_clock;
     Zobrist zobrist;
     Stack<undo_t, MAX_GAME_LENGTH> history;
-    HashTable<HASHTABLE_SIZE> hashtable;
 
     std::array<bitboard_t, 2> attacks;
     std::array<bitboard_t, 2> attacks_no_king;
@@ -81,7 +81,7 @@ class Board {
         return eval::draw;
       };
       int moves_opponent = this->generate<opponent, int>();
-      eval_t eval = 0;
+      eval_t eval = 10;
       float endgame_factor = 1 - (float)(
         popcount(this->bitboards[piece::pawn]) +
         3 * popcount(this->bitboards[piece::knight]) +
@@ -126,31 +126,33 @@ class Board {
     search_result_t search(int depth, eval_t alpha, eval_t beta, u64_t& tbhits, u64_t& nodes) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       eval_t alpha_initial = alpha;
+      continuation_t continuation;
       if (depth == 0) {
         nodes++;
-        return search_result_t {move::none, this->evaluate<color>()};
+        return search_result_t {continuation, this->evaluate<color>()};
       };
-      HashTableEntry& entry = this->hashtable.get(this->zobrist.hash);
-      if (entry.hash == this->zobrist.hash && entry.depth >= depth) {
+      transposition::entry_t& entry = transposition::get(this->zobrist.hash);
+      if (entry.is_valid(this->zobrist.hash, depth)) {
         tbhits++;
-        if (entry.flags == exact_bound) {
+        u8_t bound = entry.get_bound();
+        if (bound == transposition::exact_bound) {
           nodes++;
-          return search_result_t {entry.move, entry.eval};
-        } else if (entry.flags == upper_bound) {
-          beta = std::min(beta, entry.eval);
-        } else if (entry.flags == lower_bound) {
-          alpha = std::max(alpha, entry.eval);
+          continuation.push(entry.move);
+          return search_result_t {continuation, entry.get_eval()};
+        } else if (bound == transposition::upper_bound) {
+          beta = std::min(beta, entry.get_eval());
+        } else if (bound == transposition::lower_bound) {
+          alpha = std::max(alpha, entry.get_eval());
         };
         if (alpha >= beta) {
           nodes++;
-          return search_result_t {move::none, entry.eval};
+          return search_result_t {continuation, entry.get_eval()};
         };
       };
       move_stack_t moves = this->generate<color, move_stack_t>();
       moves.sort();
       moves.reverse();
       eval_t eval = eval::mate_opponent;
-      move_t best_move = move::none;
       for (move_t move : moves) {
         this->make(move);
         search_result_t search_result = this->search<opponent>(depth - 1, -beta, -alpha, tbhits, nodes);
@@ -158,7 +160,9 @@ class Board {
         search_result.eval = -search_result.eval;
         if (eval < search_result.eval) {
           eval = search_result.eval;
-          best_move = move;
+          continuation.clear();
+          continuation.push(move);
+          continuation.append(search_result.continuation);
           if (eval > alpha) {
             alpha = eval;
             if (alpha >= beta) {
@@ -169,26 +173,13 @@ class Board {
         };
       };
       if (eval <= alpha_initial) {
-        entry.hash = this->zobrist.hash;
-        entry.eval = eval;
-        entry.move = best_move;
-        entry.depth = depth;
-        entry.flags = upper_bound;
+        entry.set(this->zobrist.hash, continuation[0], eval, depth, transposition::upper_bound);
       } else if (eval >= beta) {
-        entry.hash = this->zobrist.hash;
-        entry.eval = eval;
-        entry.move = best_move;
-        entry.depth = depth;
-        entry.flags = lower_bound;
+        entry.set(this->zobrist.hash, continuation[0], eval, depth, transposition::lower_bound);
       } else {
-        entry.hash = this->zobrist.hash;
-        entry.depth = depth;
-        entry.eval = eval;
-        entry.move = best_move;
-        entry.depth = depth;
-        entry.flags = exact_bound;
+        entry.set(this->zobrist.hash, continuation[0], eval, depth, transposition::exact_bound);
       };
-      return search_result_t {best_move, eval};
+      return search_result_t {continuation, eval};
     };
 
     search_result_t search(int depth) {

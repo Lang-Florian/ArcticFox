@@ -53,7 +53,7 @@ class Stack {
       return this->array[--this->_size_];
     };
 
-    T pop(bool check) {
+    T pop(auto check) {
       return this->array[this->_size_ -= check];
     };
 
@@ -96,6 +96,12 @@ class Stack {
 
     void reverse() {
       std::reverse(this->array, this->array + this->_size_);
+    };
+
+    template <int OTHER_MAX_SIZE>
+    void append(Stack<T, OTHER_MAX_SIZE> other) {
+      std::copy(other.begin(), other.end(), this->array + this->_size_);
+      this->_size_ += other.size();
     };
 
     Stack<T, MAX_SIZE> copy() {

@@ -73,6 +73,10 @@ class Stack {
       return std::find_if(this->array, this->array + this->_size_, check) - this->array;
     };
 
+    bool contains(T value) {
+      return std::find(this->array, this->array + this->_size_, value) != this->array + this->_size_;
+    };
+
     bool contains(auto check) {
       return std::find_if(this->array, this->array + this->_size_, check) != this->array + this->_size_;
     };

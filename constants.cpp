@@ -399,12 +399,11 @@ namespace outcome {
 
 // move generation constants
 enum get_t {
-  quiet =            0b0001,
-  direct_check =     0b0010,
-  discovered_check = 0b0100,
-  capture =          0b1000,
-  non_quiet =        0b1110,
-  legal =            0b1111,
+  quiet =            0b001,
+  check =            0b010,
+  capture =          0b100,
+  non_quiet =        0b110,
+  legal =            0b111,
 };
 
 

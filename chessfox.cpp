@@ -24,7 +24,7 @@ void do_perft(std::string fen, int depth) {
   Board board;
   board.set_fen(fen);
   u64_t start = timing::nanoseconds();
-  u64_t count = board.perft(depth);
+  u64_t count = board.perft<check>(depth);
   u64_t end = timing::nanoseconds();
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
@@ -36,60 +36,67 @@ void do_perft(std::string fen, int depth) {
 int main() {
   cout << transposition::table_size() / (float)(1ULL << 30) << " GB" << endl;
 
-  Board board;
-  search_result_t result;
+  do_perft(fen::startpos, 7);
+  do_perft(fen::pos2, 5);
+  do_perft(fen::pos3, 7);
+  do_perft(fen::pos4, 5);
+  do_perft(fen::pos5, 5);
+  do_perft(fen::pos6, 5);
 
-  board.set_fen(fen::startpos);
-  cout << board.fen() << endl;
-  result = board.search(7);
-  cout << result.eval << endl;
-  for (move_t move : result.continuation) {
-    cout << move::uci(move) << endl;
-  };
-  cout << endl;
+  // Board board;
+  // search_result_t result;
+
+  // board.set_fen(fen::startpos);
+  // cout << board.fen() << endl;
+  // result = board.search(7);
+  // cout << result.eval << endl;
+  // for (move_t move : result.continuation) {
+  //   cout << move::uci(move) << endl;
+  // };
+  // cout << endl;
   
-  board.set_fen(fen::pos2);
-  cout << board.fen() << endl;
-  result = board.search(7);
-  cout << result.eval << endl;
-  for (move_t move : result.continuation) {
-    cout << move::uci(move) << endl;
-  };
-  cout << endl;
+  // board.set_fen(fen::pos2);
+  // cout << board.fen() << endl;
+  // result = board.search(7);
+  // cout << result.eval << endl;
+  // for (move_t move : result.continuation) {
+  //   cout << move::uci(move) << endl;
+  // };
+  // cout << endl;
   
-  board.set_fen(fen::pos3);
-  cout << board.fen() << endl;
-  result = board.search(7);
-  cout << result.eval << endl;
-  for (move_t move : result.continuation) {
-    cout << move::uci(move) << endl;
-  };
-  cout << endl;
+  // board.set_fen(fen::pos3);
+  // cout << board.fen() << endl;
+  // result = board.search(7);
+  // cout << result.eval << endl;
+  // for (move_t move : result.continuation) {
+  //   cout << move::uci(move) << endl;
+  // };
+  // cout << endl;
   
-  board.set_fen(fen::pos4);
-  cout << board.fen() << endl;
-  result = board.search(7);
-  cout << result.eval << endl;
-  for (move_t move : result.continuation) {
-    cout << move::uci(move) << endl;
-  };
-  cout << endl;
+  // board.set_fen(fen::pos4);
+  // cout << board.fen() << endl;
+  // result = board.search(7);
+  // cout << result.eval << endl;
+  // for (move_t move : result.continuation) {
+  //   cout << move::uci(move) << endl;
+  // };
+  // cout << endl;
   
-  board.set_fen(fen::pos5);
-  cout << board.fen() << endl;
-  result = board.search(7);
-  cout << result.eval << endl;
-  for (move_t move : result.continuation) {
-    cout << move::uci(move) << endl;
-  };
-  cout << endl;
+  // board.set_fen(fen::pos5);
+  // cout << board.fen() << endl;
+  // result = board.search(7);
+  // cout << result.eval << endl;
+  // for (move_t move : result.continuation) {
+  //   cout << move::uci(move) << endl;
+  // };
+  // cout << endl;
   
-  board.set_fen(fen::pos6);
-  cout << board.fen() << endl;
-  result = board.search(7);
-  cout << result.eval << endl;
-  for (move_t move : result.continuation) {
-    cout << move::uci(move) << endl;
-  };
-  cout << endl;
+  // board.set_fen(fen::pos6);
+  // cout << board.fen() << endl;
+  // result = board.search(7);
+  // cout << result.eval << endl;
+  // for (move_t move : result.continuation) {
+  //   cout << move::uci(move) << endl;
+  // };
+  // cout << endl;
 };

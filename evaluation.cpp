@@ -125,7 +125,7 @@ namespace eval {
     } else if constexpr (piece == piece::black_king) {
       return endgame_factor * eval::king_value_endgame[square ^ 56] +
              (1 - endgame_factor) * eval::king_value_middlegame[square ^ 56];
-    }
+    };
     return 0;
   };
 

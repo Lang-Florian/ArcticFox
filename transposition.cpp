@@ -73,7 +73,7 @@ namespace transposition {
   };
 
 
-  static entry_t table[1ULL << TABLE_SIZE_LOG2];
+  static std::array<entry_t, 1ULL << TABLE_SIZE_LOG2> table;
 
 
   entry_t& get(hash_t hash) {

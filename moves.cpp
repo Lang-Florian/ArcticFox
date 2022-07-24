@@ -122,7 +122,7 @@ namespace move {
   move_t mvv_lva_key(move_t move) {
     constexpr move_t move_piece_mask =     0b00000001111100000000000000000000;
     constexpr move_t captured_piece_mask = 0b00111110000000000000000000000000;
-    if (captured_piece_mask & move) {
+    if (capture(move)) {
       return move ^ move_piece_mask;
     };
     return move;

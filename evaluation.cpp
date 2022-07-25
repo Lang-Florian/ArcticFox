@@ -14,13 +14,41 @@
 
 
 namespace eval {
-  enum : eval_t {
-    mate = 32767,
-    mate_opponent = -32767,
-    draw = 0,
+  enum : score_t {
+    inf =       32767,
+    checkmate = 30000,
+    draw =          0,
+    max_eval =  10000,
   };
 
-  constexpr eval_t pawn_value[64] = {
+  std::string to_string(score_t score) {
+    if (score == inf)        return "oo";
+    if (score == -inf)       return "-oo";
+    if (score == checkmate)  return "1-0";
+    if (score == -checkmate) return "0-1";
+    if (score > max_eval)    return "#" + std::to_string((checkmate - score + 1) >> 1);
+    if (score < -max_eval)   return "#-" + std::to_string((score + checkmate + 1) >> 1);
+    if (score == draw)       return "1/2-1/2";
+    return std::to_string(score);
+  };
+
+  score_t add_depth(score_t score) {
+    return score = (
+      ((score > max_eval) && (score != inf)) -
+      ((score < -max_eval) && (score != -inf)) -
+      score
+    );
+  };
+
+  score_t remove_depth(score_t score) {
+    return score = (
+      ((score < -max_eval) && (score != -inf)) -
+      ((score > max_eval) && (score != inf)) -
+      score
+    );
+  };
+
+  constexpr score_t pawn_value[64] = {
       0,   0,   0,   0,   0,   0,   0,   0,
     150, 150, 150, 150, 150, 150, 150, 150,
     110, 110, 120, 130, 130, 120, 110, 110,
@@ -31,7 +59,7 @@ namespace eval {
       0,   0,   0,   0,   0,   0,   0,   0,
   };
 
-  constexpr eval_t knight_value[64] = {
+  constexpr score_t knight_value[64] = {
     300, 310, 320, 320, 320, 320, 310, 300,
     310, 330, 350, 350, 350, 350, 330, 310,
     320, 350, 360, 365, 365, 360, 350, 320,
@@ -42,7 +70,7 @@ namespace eval {
     300, 310, 320, 320, 320, 320, 310, 300,
   };
 
-  constexpr eval_t bishop_value[64] = {
+  constexpr score_t bishop_value[64] = {
     330, 340, 340, 340, 340, 340, 340, 330,
     340, 350, 350, 350, 350, 350, 350, 340,
     340, 350, 355, 360, 360, 355, 350, 340,
@@ -53,7 +81,7 @@ namespace eval {
     330, 340, 340, 340, 340, 340, 340, 330,
   };
 
-  constexpr eval_t rook_value[64] = {
+  constexpr score_t rook_value[64] = {
     525, 525, 525, 525, 525, 525, 525, 525,
     530, 535, 535, 535, 535, 535, 535, 530,
     520, 525, 525, 525, 525, 525, 525, 520,
@@ -64,7 +92,7 @@ namespace eval {
     525, 525, 525, 530, 530, 525, 525, 525,
   };
 
-  constexpr eval_t queen_value[64] = {
+  constexpr score_t queen_value[64] = {
      980,  990,  990,  995,  995,  990,  990,  980,
      990, 1000, 1000, 1000, 1000, 1000, 1000,  990,
      990, 1000, 1005, 1005, 1005, 1005, 1000,  990,
@@ -75,7 +103,7 @@ namespace eval {
      980,  990,  990,  995,  995,  990,  990,  980,
   };
 
-  constexpr eval_t king_value_middlegame[64] = {
+  constexpr score_t king_value_middlegame[64] = {
     -30, -40, -40, -50, -50, -40, -40, -30,
     -30, -40, -40, -50, -50, -40, -40, -30,
     -30, -40, -40, -50, -50, -40, -40, -30,
@@ -86,7 +114,7 @@ namespace eval {
      20,  30,  10,   0,   0,  10,  30,  20,
   };
 
-  constexpr eval_t king_value_endgame[64] = {
+  constexpr score_t king_value_endgame[64] = {
     -50, -40, -30, -20, -20, -30, -40, -50,
     -30, -20, -10,   0,   0, -10, -20, -30,
     -30, -10,  20,  30,  30,  20, -10, -30,
@@ -98,7 +126,7 @@ namespace eval {
   };
 
   template <piece_t piece>
-  eval_t value(square_t square, float endgame_factor=0) {
+  score_t value(square_t square, float endgame_factor=0) {
     if constexpr (piece == piece::white_pawn) {
       return pawn_value[square];
     } else if constexpr (piece == piece::black_pawn) {
@@ -129,7 +157,7 @@ namespace eval {
     return 0;
   };
 
-  constexpr eval_t (*(value_array[32]))(square_t, float) = {
+  constexpr score_t (*(value_array[32]))(square_t, float) = {
      value<0>,  value<1>,  value<2>,  value<3>,  value<4>,  value<5>,  value<6>,  value<7>,
      value<8>,  value<9>, value<10>, value<11>, value<12>, value<13>, value<14>, value<15>,
     value<16>, value<17>, value<18>, value<19>, value<20>, value<21>, value<22>, value<23>,

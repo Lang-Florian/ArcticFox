@@ -128,6 +128,18 @@ namespace move {
     return move;
   };
 
+  struct {
+    bool operator()(move_t move1, move_t move2) const {
+      return move::mvv_lva_key(move1) < move::mvv_lva_key(move2);
+    };
+  } reverse_ordering;
+
+  struct {
+    bool operator()(move_t move1, move_t move2) const {
+      return move::mvv_lva_key(move1) > move::mvv_lva_key(move2);
+    };
+  } ordering;
+
   move_t none = (move_t)0;
 };
 

@@ -65,6 +65,7 @@ class Board {
     std::array<bitboard_t, 2> bishop_discoverable;
     std::array<bitboard_t, 2> rook_discoverable;
     std::array<bitboard_t, 2> enpassant_discoverable;
+    std::array<bool, 2> is_castled;
 
     // initialize the board
     Board(std::string fen=fen::startpos) {
@@ -383,6 +384,7 @@ class Board {
       } else if (move::castling(move)) {
         this->remove_piece<color>(to + (to > from) * 3 - 2);
         this->place_piece<color>(rook, to - (to > from) * 2 + 1);
+        this->is_castled[color] = true;
       } else if (move::double_pawn_push(move)) {
         if constexpr (color == color::white) {
           this->enpassant = to + 8;
@@ -437,6 +439,7 @@ class Board {
       } else if (move::castling(move)) {
         this->remove_piece<color>(to - (to > from) * 2 + 1);
         this->place_piece<color>(rook, to + (to > from) * 3 - 2);
+        this->is_castled[color] = false;
       } else if (move::capture(move)) {
         this->place_piece<opponent>(move::captured_piece(move), to);
       };
@@ -604,27 +607,21 @@ class Board {
     template <color_t color>
     void update_discoverable() {
       constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, opponent);
       constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
       constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
       constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-      square_t king_square = get_lsb(this->bitboards[opponent_king]);
-      bitboard_t king_bishop_ray = attack_ray::bishop[king_square];
-      bitboard_t king_rook_ray = attack_ray::rook[king_square];
       bitboard_t occupancy = this->bitboards[piece::none];
-      bitboard_t king_bishop_attack = attack<piece::bishop>(king_square, occupancy);
-      bitboard_t king_rook_attack = attack<piece::rook>(king_square, occupancy);
       this->bishop_discoverable[color] = bitboard::none;
-      bitboard_t bishop_attackers = (this->bitboards[bishop] | this->bitboards[queen]) & king_bishop_ray;
+      bitboard_t bishop_attackers = (this->bitboards[bishop] | this->bitboards[queen]) & this->king_bishop_ray[opponent];
       while (bishop_attackers) {
         square_t square = pop_lsb(bishop_attackers);
-        bishop_discoverable[color] |= attack<bishop>(square, occupancy) & king_bishop_attack;
+        bishop_discoverable[color] |= attack<bishop>(square, occupancy) & this->king_bishop_attack[opponent];
       };
       this->rook_discoverable[color] = bitboard::none;
-      bitboard_t rook_attackers = (this->bitboards[rook] | this->bitboards[queen]) & king_rook_ray;
+      bitboard_t rook_attackers = (this->bitboards[rook] | this->bitboards[queen]) & this->king_rook_ray[opponent];
       while (rook_attackers) {
         square_t square = pop_lsb(rook_attackers);
-        this->rook_discoverable[color] |= attack<rook>(square, occupancy) & king_rook_attack;
+        this->rook_discoverable[color] |= attack<rook>(square, occupancy) & this->king_rook_attack[opponent];
       };
       this->enpassant_discoverable[color] = bitboard::full;
       if (this->enpassant != square::none && color == this->turn) {
@@ -635,10 +632,10 @@ class Board {
         } else {
           enpassant_pawns = bitboard(this->enpassant) >> 8;
         };
-        bitboard_t enpassant_attackers = (this->bitboards[rook] | this->bitboards[queen]) & king_rook_ray;
+        bitboard_t enpassant_attackers = (this->bitboards[rook] | this->bitboards[queen]) & this->king_rook_ray[opponent];
         while (enpassant_attackers) {
           square_t square = pop_lsb(enpassant_attackers);
-          this->enpassant_discoverable[color] |= attack<rook>(square, occupancy & ~enpassant_pawns) & attack<rook>(king_square, occupancy & ~enpassant_pawns);
+          this->enpassant_discoverable[color] |= attack<rook>(square, occupancy & ~enpassant_pawns) & attack<rook>(this->king_square[opponent], occupancy & ~enpassant_pawns);
         };
       };
     };
@@ -662,6 +659,7 @@ class Board {
       this->update_attacks<opponent>();
       this->update_pins<color>();
       this->update_king<color>();
+      this->update_king<opponent>();
       this->update_discoverable<color>();
 
       // add all possible moves to the move stack
@@ -788,6 +786,7 @@ class Board {
     // add legal castling moves to the move stack
     template <color_t color, gen_t gen, typename T>
     void add_castling_moves(T& moves) {
+      constexpr color_t opponent = color::compiletime::opponent(color);
       bitboard_t occupancy = this->bitboards[color::none];
       if constexpr (color == color::white) {
         bool castle_king = (
@@ -800,6 +799,7 @@ class Board {
           !(occupancy & castling::white_queen_piece_mask) &&
           (this->castling & castling::white_queen)
         );
+        bitboard_t checking_squares = this->king_rook_attack[opponent];
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           moves.push(move::move(square::e1, square::g1, piece::white_king, piece::white_king, piece::none, false, false, true, false, false));
           moves.pop(!castle_king);
@@ -1044,14 +1044,15 @@ class Board {
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
       constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, opponent);
+      bitboard_t checking_squares = attack<knight>(this->king_square[opponent]);
       bitboard_t occupancy_color = this->bitboards[color];
       bitboard_t non_discoverable_target = bitboard::none;
       bitboard_t discoverable_target = bitboard::none;
       if constexpr (gen & quiet) {
-        non_discoverable_target |= ~(attack<knight>(get_lsb(this->bitboards[opponent_king])) | this->bitboards[opponent]);
+        non_discoverable_target |= ~(checking_squares | this->bitboards[opponent]);
       };
       if constexpr (gen & check) {
-        non_discoverable_target |= attack<knight>(get_lsb(this->bitboards[opponent_king]));
+        non_discoverable_target |= checking_squares;
         discoverable_target |= bitboard::full;
       };
       if constexpr (gen & capture) {
@@ -1067,7 +1068,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
           };
         } else {
           moves += popcount(possible_to);
@@ -1080,7 +1081,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, true));
           };
         } else {
           moves += popcount(possible_to);
@@ -1093,13 +1094,14 @@ class Board {
     void add_bishop_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
+      bitboard_t checking_squares = this->king_bishop_attack[opponent];
       bitboard_t non_discoverable_target = bitboard::none;
       bitboard_t rook_discoverable_target = bitboard::none;
       if constexpr (gen & quiet) {
-        non_discoverable_target |= ~(this->king_bishop_attack[opponent] | this->bitboards[opponent]);
+        non_discoverable_target |= ~(checking_squares | this->bitboards[opponent]);
       };
       if constexpr (gen & check) {
-        non_discoverable_target |= this->king_bishop_attack[opponent];
+        non_discoverable_target |= checking_squares;
         rook_discoverable_target |= bitboard::full;
       };
       if constexpr (gen & capture) {
@@ -1117,7 +1119,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
           };
         } else {
           moves += popcount(possible_to);
@@ -1130,7 +1132,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
           };
         } else {
           moves += popcount(possible_to);
@@ -1143,7 +1145,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, true));
           };
         } else {
           moves += popcount(possible_to);
@@ -1156,7 +1158,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, true));
           };
         } else {
           moves += popcount(possible_to);
@@ -1169,13 +1171,14 @@ class Board {
     void add_rook_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
+      bitboard_t checking_squares = this->king_rook_attack[opponent];
       bitboard_t non_discoverable_target = bitboard::none;
       bitboard_t bishop_discoverable_target = bitboard::none;
       if constexpr (gen & quiet) {
-        non_discoverable_target |= ~(this->king_rook_attack[opponent] | this->bitboards[opponent]);
+        non_discoverable_target |= ~(checking_squares | this->bitboards[opponent]);
       };
       if constexpr (gen & check) {
-        non_discoverable_target |= this->king_rook_attack[opponent];
+        non_discoverable_target |= checking_squares;
         bishop_discoverable_target |= bitboard::full;
       };
       if constexpr (gen & capture) {
@@ -1193,7 +1196,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
           };
         } else {
           moves += popcount(possible_to);
@@ -1206,7 +1209,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
           };
         } else {
           moves += popcount(possible_to);
@@ -1219,7 +1222,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, true));
           };
         } else {
           moves += popcount(possible_to);
@@ -1232,7 +1235,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, true));
           };
         } else {
           moves += popcount(possible_to);
@@ -1245,12 +1248,13 @@ class Board {
     void add_queen_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
+      bitboard_t checking_squares = this->king_bishop_attack[opponent] | this->king_rook_attack[opponent];
       bitboard_t target = bitboard::none;
       if constexpr (gen & quiet) {
-        target |= ~(this->king_bishop_attack[opponent] | this->king_rook_attack[opponent] | this->bitboards[opponent]);
+        target |= ~(checking_squares | this->bitboards[opponent]);
       };
       if constexpr (gen & check) {
-        target |= this->king_bishop_attack[opponent] | this->king_rook_attack[opponent];
+        target |= checking_squares;
       };
       if constexpr (gen & capture) {
         target |= this->bitboards[opponent];
@@ -1265,7 +1269,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
           };
         } else {
           moves += popcount(possible_to);
@@ -1278,7 +1282,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
           };
         } else {
           moves += popcount(possible_to);
@@ -1291,7 +1295,7 @@ class Board {
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, false));
+            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
           };
         } else {
           moves += popcount(possible_to);

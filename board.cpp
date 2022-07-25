@@ -36,7 +36,7 @@ struct undo_t {
 
 struct search_result_t {
   continuation_t continuation;
-  eval_t eval;
+  score_t score;
 };
 
 
@@ -72,19 +72,19 @@ class Board {
     };
 
     template <color_t color>
-    eval_t evaluate() {
+    score_t evaluate() {
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr std::array<piece_t, 6> pieces = piece::all_pieces_by_color[color];
       constexpr std::array<piece_t, 6> opponent_pieces = piece::all_pieces_by_color[opponent];
       int moves = this->generate<color, legal, int>();
       outcome_t outcome = this->outcome<color>(moves);
       if (outcome & outcome::checkmate) {
-        return eval::mate_opponent;
+        return -eval::checkmate;
       } else if (outcome & outcome::draw) {
         return eval::draw;
       };
       int moves_opponent = this->generate<opponent, legal, int>();
-      eval_t eval = 10;
+      score_t score = 10;
       float endgame_factor = 1 - (float)(
         (popcount(this->bitboards[piece::pawn])) +
         (popcount(this->bitboards[piece::knight]) << 1) +
@@ -96,28 +96,28 @@ class Board {
         bitboard_t piece_bitboard = this->bitboards[piece];
         while (piece_bitboard) {
           square_t square = pop_lsb(piece_bitboard);
-          eval += eval::value_array[piece](square, endgame_factor);
+          score += eval::value_array[piece](square, endgame_factor);
         };
       };
       for (piece_t piece : opponent_pieces) {
         bitboard_t piece_bitboard = this->bitboards[piece];
         while (piece_bitboard) {
           square_t square = pop_lsb(piece_bitboard);
-          eval -= eval::value_array[piece](square, endgame_factor);
+          score -= eval::value_array[piece](square, endgame_factor);
         };
       };
-      eval -= popcount(this->rook_pins[color]) << 4;
-      eval -= popcount(this->bishop_pins[color]) << 4;
-      eval += popcount(this->rook_pins[opponent]) << 4;
-      eval += popcount(this->bishop_pins[opponent]) << 4;
-      eval += popcount(this->attacks[color]) << 0;
-      eval -= popcount(this->attacks[opponent]) << 0;
-      eval += moves >> 3;
-      eval -= moves_opponent >> 3;
-      return eval;
+      score -= popcount(this->rook_pins[color]) << 4;
+      score -= popcount(this->bishop_pins[color]) << 4;
+      score += popcount(this->rook_pins[opponent]) << 4;
+      score += popcount(this->bishop_pins[opponent]) << 4;
+      score += popcount(this->attacks[color]) << 0;
+      score -= popcount(this->attacks[opponent]) << 0;
+      score += moves >> 3;
+      score -= moves_opponent >> 3;
+      return score;
     };
 
-    eval_t evaluate() {
+    score_t evaluate() {
       if (this->turn == color::white) {
         return this->evaluate<color::white>();
       } else {
@@ -126,14 +126,17 @@ class Board {
     };
 
     template <color_t color>
-    search_result_t search(int depth, eval_t alpha, eval_t beta, u64_t& tbhits, u64_t& nodes) {
+    search_result_t search(int depth, score_t alpha, score_t beta, u64_t& tbhits, u64_t& nodes) {
       constexpr color_t opponent = color::compiletime::opponent(color);
-      eval_t alpha_initial = alpha;
-      continuation_t continuation;
       if (depth == 0) {
         nodes++;
-        return search_result_t {continuation, this->evaluate<color>()};
+        return search_result_t {continuation_t {}, this->evaluate<color>()};
       };
+      if (this->position_existed<color>()) {
+        nodes++;
+        return search_result_t {continuation_t {}, eval::draw};
+      };
+      continuation_t continuation;
       transposition::entry_t& entry = transposition::get(this->zobrist.hash);
       if (entry.is_valid(this->zobrist.hash, depth)) {
         tbhits++;
@@ -141,68 +144,65 @@ class Board {
         if (bound == transposition::exact_bound) {
           nodes++;
           continuation.push(entry.move);
-          return search_result_t {continuation, entry.get_eval()};
-        } else if (bound == transposition::upper_bound) {
-          beta = std::min(beta, entry.get_eval());
-        } else if (bound == transposition::lower_bound) {
-          alpha = std::max(alpha, entry.get_eval());
+          return search_result_t {continuation, entry.get_score()};
+        } else if (bound == transposition::upper_bound && beta > entry.get_score()) {
+          beta = entry.get_score();
+        } else if (bound == transposition::lower_bound && alpha < entry.get_score()) {
+          alpha = entry.get_score();
         };
         if (alpha >= beta) {
           nodes++;
-          return search_result_t {continuation, entry.get_eval()};
+          return search_result_t {continuation, entry.get_score()};
         };
       };
       move_stack_t moves = this->generate<color, legal, move_stack_t>();
-      moves.sort([](move_t move1, move_t move2) {
-        return move::mvv_lva_key(move1) < move::mvv_lva_key(move2);
-      });
-      // moves.sort();
+      outcome_t outcome = this->outcome<color>(moves.size());
+      if (outcome & outcome::checkmate) {
+        nodes++;
+        return search_result_t {continuation_t {}, -eval::checkmate};
+      }else if (outcome & outcome::draw) {
+        nodes++;
+        return search_result_t {continuation_t {}, eval::draw};
+      };
+      moves.sort(move::reverse_ordering);
       if (moves.contains(entry.move)) {
         moves.push(entry.move);
       };
       moves.reverse();
-      eval_t eval = eval::mate_opponent;
-        for (move_t move : moves) {
+      u8_t bound = transposition::upper_bound;
+      for (move_t move : moves) {
         this->make(move);
-        search_result_t search_result = this->search<opponent>(depth - 1, -beta, -alpha, tbhits, nodes);
+        search_result_t search_result = this->search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tbhits, nodes);
         this->unmake();
-        search_result.eval = -search_result.eval;
-        if (eval < search_result.eval) {
-          eval = search_result.eval;
+        search_result.score = eval::add_depth(search_result.score);
+        if (search_result.score > alpha) {
           continuation.clear();
           continuation.push(move);
           continuation.append(search_result.continuation);
-          if (eval > alpha) {
-            alpha = eval;
-            if (alpha >= beta) {
-              eval = beta;
-              break;
-            };
+          if (search_result.score >= beta) {
+            entry.set(this->zobrist.hash, move, search_result.score, depth, transposition::lower_bound);
+            return search_result_t {continuation, beta};
           };
+          alpha = search_result.score;
+          bound = transposition::exact_bound;
         };
       };
-      if (eval <= alpha_initial) {
-        entry.set(this->zobrist.hash, continuation[0], eval, depth, transposition::upper_bound);
-      } else if (eval >= beta) {
-        entry.set(this->zobrist.hash, continuation[0], eval, depth, transposition::lower_bound);
-      } else {
-        entry.set(this->zobrist.hash, continuation[0], eval, depth, transposition::exact_bound);
-      };
-      return search_result_t {continuation, eval};
+      entry.set(this->zobrist.hash, continuation[0], alpha, depth, bound);
+      return search_result_t {continuation, alpha};
     };
 
     search_result_t search(int depth) {
       if (this->turn == color::white) {
         u64_t tbhits = 0;
         u64_t nodes = 0;
-        search_result_t search_result = this->search<color::white>(depth, eval::mate_opponent, eval::mate, tbhits, nodes);
+        search_result_t search_result = this->search<color::white>(depth, -eval::inf, eval::inf, tbhits, nodes);
         std::cout << (int)tbhits << " " << (int)nodes << std::endl;
         return search_result;
       } else {
         u64_t tbhits = 0;
         u64_t nodes = 0;
-        search_result_t search_result = this->search<color::black>(depth, eval::mate_opponent, eval::mate, tbhits, nodes);
-        search_result.eval = -search_result.eval;
+        search_result_t search_result = this->search<color::black>(depth, -eval::inf, eval::inf, tbhits, nodes);
+        search_result.score = -search_result.score;
         std::cout << (int)tbhits << " " << (int)nodes << std::endl;
         return search_result;
       };
@@ -778,6 +778,11 @@ class Board {
         return outcome::threefold_repetition;
       };
       return outcome::none;
+    };
+
+    template <color_t color>
+    bool position_existed() {
+      return this->history.count([this](undo_t undo) {return undo.hash == this->zobrist.hash;}) > 0;
     };
 
     // add legal castling moves to the move stack

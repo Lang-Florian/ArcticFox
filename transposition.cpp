@@ -22,8 +22,8 @@ namespace transposition {
   constexpr u32_t depth_mask = 0x000000FF;
   constexpr u32_t depth_shift = 0;
 
-  constexpr u32_t eval_mask = 0x00FFFF00;
-  constexpr u32_t eval_shift = 8;
+  constexpr u32_t score_mask = 0x00FFFF00;
+  constexpr u32_t score_shift = 8;
 
   constexpr u32_t bound_mask = 0xFF000000;
   constexpr u32_t bound_shift = 24;
@@ -38,12 +38,12 @@ namespace transposition {
     move_t move;
     u32_t flags;
 
-    void set(hash_t hash, move_t move, eval_t eval, u8_t depth, u8_t bound) {
+    void set(hash_t hash, move_t move, score_t score, u8_t depth, u8_t bound) {
       this->hash_validation = (hash & validation_mask) >> validation_shift;
       this->move = move;
       this->flags = (
         (depth << depth_shift) |
-        (eval << eval_shift) |
+        (score << score_shift) |
         (bound << bound_shift)
       );
     };
@@ -56,8 +56,8 @@ namespace transposition {
       return (flags & depth_mask) >> depth_shift;
     };
 
-    eval_t get_eval() {
-      return (flags & eval_mask) >> eval_shift;
+    score_t get_score() {
+      return (flags & score_mask) >> score_shift;
     };
 
     u8_t get_bound() {

@@ -17,6 +17,7 @@
 #define MAX_GAME_LENGTH 512
 #define MAX_MOVE_LENGTH 512
 #define TABLE_SIZE_LOG2 30
+#define MAX_Q_DEPTH 32
 
 
 /*
@@ -281,6 +282,7 @@ namespace bitboard {
   const bitboard_t file_f = 0x2020202020202020ULL;
   const bitboard_t file_g = 0x4040404040404040ULL;
   const bitboard_t file_h = 0x8080808080808080ULL;
+  const bitboard_t files[8] = {file_a, file_b, file_c, file_d, file_e, file_f, file_g, file_h};
   
   const bitboard_t rank_1 = 0xFF00000000000000ULL;
   const bitboard_t rank_2 = 0x00FF000000000000ULL;
@@ -290,6 +292,7 @@ namespace bitboard {
   const bitboard_t rank_6 = 0x0000000000FF0000ULL;
   const bitboard_t rank_7 = 0x000000000000FF00ULL;
   const bitboard_t rank_8 = 0x00000000000000FFULL;
+  const bitboard_t ranks[8] = {rank_1, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8};
 
   const bitboard_t white_side = rank_1 | rank_2 | rank_3 | rank_4;
   const bitboard_t black_side = rank_5 | rank_6 | rank_7 | rank_8;

@@ -70,7 +70,6 @@ namespace attack_tables {
 
 */
 
-
 template <piece_t piece>
 bitboard_t attack(square_t square, bitboard_t occupancy=bitboard::none) {
   if constexpr (piece == piece::white_pawn) {

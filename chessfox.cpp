@@ -21,9 +21,9 @@
 using namespace std;
 
 void do_perft(std::string fen, int depth) {
-  Board board;
+  Board board = Board(fen);
   u64_t start = timing::nanoseconds();
-  u64_t count = board.perft<legal>(depth);
+  u64_t count = board.perft<check>(depth);
   u64_t end = timing::nanoseconds();
   cout << endl << "\tPerft " << depth << " of " << endl;
   cout << "\t" << board.fen() << endl;
@@ -87,18 +87,18 @@ int main() {
   // pretty_print(board);
 
 
-  Board board;
-  while (true) {
-    pretty_print(board);
-    std::string move_str;
-    std::cout << "Enter a move: ";
-    std::cin >> move_str;
-    board.push_uci(move_str);
-    // get a move string from the user
-    search_result_t result = board.search(8);
-    std::cout << "Score: " << eval::to_string(result.score) << std::endl;
-    board.make(result.continuation[0]);
-  };
+  // Board board;
+  // while (true) {
+  //   pretty_print(board);
+  //   std::string move_str;
+  //   std::cout << "Enter a move: ";
+  //   std::cin >> move_str;
+  //   board.push_uci(move_str);
+  //   // get a move string from the user
+  //   search_result_t result = board.search(8);
+  //   std::cout << "Score: " << eval::to_string(result.score) << std::endl;
+  //   board.make(result.continuation[0]);
+  // };
   
   // wellllllll
   // 8/7P/R7/8/5k2/4p3/5PK1/8 w - - 0 46
@@ -112,12 +112,12 @@ int main() {
 //   cout << transposition::table_size() / (float)(1ULL << 30) << " GB" << endl;
 //   cout << sizeof(transposition::entry_t) << " bytes" << endl;
 
-//   do_perft(fen::startpos, 7);
-//   do_perft(fen::pos2, 5);
-//   do_perft(fen::pos3, 7);
-//   do_perft(fen::pos4, 5);
-//   do_perft(fen::pos5, 5);
-//   do_perft(fen::pos6, 5);
+  // do_perft(fen::startpos, 6);
+  // do_perft(fen::pos2, 5);
+  // do_perft(fen::pos3, 3);
+  // do_perft(fen::pos4, 6);
+  // do_perft(fen::pos5, 5);
+  // do_perft(fen::pos6, 5);
   // Board board;// = Board("4Q3/8/8/8/8/3K4/6kp/8 w - - 0 1");
   // pretty_print(board);
   // for (int i=0; i<15; i++) {
@@ -132,60 +132,60 @@ int main() {
   //  cout << endl;
   // };
 
-  // Board board;
-  // search_result_t result;
+  Board board;
+  search_result_t result;
 
-  // board.set_fen(fen::startpos);
-  // cout << board.fen() << endl;
-  // result = board.search(7);
-  // cout << result.eval << endl;
-  // for (move_t move : result.continuation) {
-  //   cout << move::uci(move) << endl;
-  // };
-  // cout << endl;
+  board.set_fen(fen::startpos);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.score << endl;
+  for (move_t move : result.continuation) {
+    cout << move::uci(move) << endl;
+  };
+  cout << endl;
   
-  // board.set_fen(fen::pos2);
-  // cout << board.fen() << endl;
-  // result = board.search(7);
-  // cout << result.eval << endl;
-  // for (move_t move : result.continuation) {
-  //   cout << move::uci(move) << endl;
-  // };
-  // cout << endl;
+  board.set_fen(fen::pos2);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.score << endl;
+  for (move_t move : result.continuation) {
+    cout << move::uci(move) << endl;
+  };
+  cout << endl;
   
-  // board.set_fen(fen::pos3);
-  // cout << board.fen() << endl;
-  // result = board.search(7);
-  // cout << result.eval << endl;
-  // for (move_t move : result.continuation) {
-  //   cout << move::uci(move) << endl;
-  // };
-  // cout << endl;
+  board.set_fen(fen::pos3);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.score << endl;
+  for (move_t move : result.continuation) {
+    cout << move::uci(move) << endl;
+  };
+  cout << endl;
   
-  // board.set_fen(fen::pos4);
-  // cout << board.fen() << endl;
-  // result = board.search(7);
-  // cout << result.eval << endl;
-  // for (move_t move : result.continuation) {
-  //   cout << move::uci(move) << endl;
-  // };
-  // cout << endl;
+  board.set_fen(fen::pos4);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.score << endl;
+  for (move_t move : result.continuation) {
+    cout << move::uci(move) << endl;
+  };
+  cout << endl;
   
-  // board.set_fen(fen::pos5);
-  // cout << board.fen() << endl;
-  // result = board.search(7);
-  // cout << result.eval << endl;
-  // for (move_t move : result.continuation) {
-  //   cout << move::uci(move) << endl;
-  // };
-  // cout << endl;
+  board.set_fen(fen::pos5);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.score << endl;
+  for (move_t move : result.continuation) {
+    cout << move::uci(move) << endl;
+  };
+  cout << endl;
   
-  // board.set_fen(fen::pos6);
-  // cout << board.fen() << endl;
-  // result = board.search(7);
-  // cout << result.eval << endl;
-  // for (move_t move : result.continuation) {
-  //   cout << move::uci(move) << endl;
-  // };
-  // cout << endl;
+  board.set_fen(fen::pos6);
+  cout << board.fen() << endl;
+  result = board.search(7);
+  cout << result.score << endl;
+  for (move_t move : result.continuation) {
+    cout << move::uci(move) << endl;
+  };
+  cout << endl;
 };

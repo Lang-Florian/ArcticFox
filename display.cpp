@@ -78,13 +78,14 @@ void pretty_print(Board board) {
   std::cout << std::endl << "\tEN PASSANT:\t\t"       << square::to_string(board.enpassant);
   std::cout << std::endl << "\tHALFMOVE CLOCK:\t\t"   << std::to_string(board.halfmove_clock);
   std::cout << std::endl << "\tFULLMOVE CLOCK:\t\t"   << std::to_string(board.fullmove_clock);
-  std::cout << std::endl << "\tFEN:\t\t\t"            << board.fen();
-  std::cout << std::endl << "\tOUTCOME:\t\t"          << outcome::to_string(board.outcome());
-  std::cout << std::endl << "\tMOVES MADE:\t\t";
-  for (undo_t undo : board.history) {
-    std::cout << move::uci(undo.move) + " ";
-  };
-  if (board.history.size() == 0) std::cout << "-";
+  // std::cout << std::endl << "\tFEN:\t\t\t"            << board.fen();
+  std::cout << std::endl << "\tPGN:\t\t\t"            << board.pgn();
+  // std::cout << std::endl << "\tOUTCOME:\t\t"          << outcome::to_string(board.outcome());
+  // std::cout << std::endl << "\tMOVES MADE:\t\t";
+  // for (undo_t undo : board.history) {
+  //   std::cout << move::uci(undo.move) + " ";
+  // };
+  // if (board.history.size() == 0) std::cout << "-";
   std::cout << std::endl;
 };
 

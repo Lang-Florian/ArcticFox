@@ -241,6 +241,17 @@ namespace piece{
     };
   };
 
+  std::string san_string(piece_t piece) {
+    switch (type(piece)) {
+      case knight: return "N";
+      case bishop: return "B";
+      case rook:   return "R";
+      case queen:  return "Q";
+      case king:   return "K";
+      default:     return "";
+    };
+  };
+
   namespace compiletime {
     constexpr piece_t to_color(piece_t piece, color_t color) {
       return (piece & 0b11100) | color;
@@ -389,11 +400,11 @@ namespace outcome {
     std::string string = "";
     if (outcome == checkmate_white)       string += "1-0";
     if (outcome == checkmate_black)       string += "0-1";
-    if (outcome == draw)                  string += "1/2-1/2";
-    if (outcome == stalemate)             string += "1/2-1/2 by Stalemate";
-    if (outcome == insufficient_material) string += "1/2-1/2 by Insufficient material";
-    if (outcome == fifty_move_rule)       string += "1/2-1/2 by Fifty move rule";
-    if (outcome == threefold_repetition)  string += "1/2-1/2 by Threefold repetition";
+    if (outcome == draw)                  string += "½–½";
+    if (outcome == stalemate)             string += "½–½ by Stalemate";
+    if (outcome == insufficient_material) string += "½–½ by Insufficient material";
+    if (outcome == fifty_move_rule)       string += "½–½ by Fifty move rule";
+    if (outcome == threefold_repetition)  string += "½–½ by Threefold repetition";
     if (string.empty())                   string += "-";
     return string;
   };

@@ -51,6 +51,7 @@ class Board {
     u16_t fullmove_clock;
     Zobrist zobrist;
     Stack<undo_t, MAX_GAME_LENGTH> history;
+    std::string starting_fen;
 
     std::array<bitboard_t, 2> attacks;
     std::array<bitboard_t, 2> attacks_no_king;
@@ -77,14 +78,18 @@ class Board {
       constexpr color_t opponent = color::compiletime::opponent(color);
       constexpr std::array<piece_t, 6> pieces = piece::all_pieces_by_color[color];
       constexpr std::array<piece_t, 6> opponent_pieces = piece::all_pieces_by_color[opponent];
-      int moves = this->generate<color, legal, int>();
-      outcome_t outcome = this->outcome<color>(moves);
+      move_stack_t moves = this->generate<color, legal, move_stack_t>();
+      outcome_t outcome = this->outcome<color>(moves.size());
       if (outcome & outcome::checkmate) {
         return -eval::checkmate;
       } else if (outcome & outcome::draw) {
         return eval::draw;
       };
-      int moves_opponent = this->generate<opponent, legal, int>();
+      move_stack_t moves_opponent = this->generate<opponent, legal, move_stack_t>();
+      int checks = moves.count([](move_t move) {return move::check(move);});
+      int checks_opponent = moves_opponent.count([](move_t move) {return move::check(move);});
+      int captures = moves.count([](move_t move) {return move::capture(move);});
+      int captures_opponent = moves_opponent.count([](move_t move) {return move::capture(move);});
       score_t score = 10;
       float endgame_factor = 1 - (float)(
         (popcount(this->bitboards[piece::pawn])) +
@@ -113,8 +118,14 @@ class Board {
       score += popcount(this->bishop_pins[opponent]) << 4;
       score += popcount(this->attacks[color]) << 0;
       score -= popcount(this->attacks[opponent]) << 0;
-      score += moves >> 3;
-      score -= moves_opponent >> 3;
+      score += popcount(this->attacks[color] & attack<piece::king>(this->king_square[opponent])) << 3;
+      score += popcount(this->attacks[opponent] & attack<piece::king>(this->king_square[color])) << 3;
+      score += moves.size() >> 2;
+      score -= moves_opponent.size() >> 2;
+      score += checks << 3;
+      score -= checks_opponent << 3;
+      score += captures << 2;
+      score -= captures_opponent << 2;
       return score;
     };
 
@@ -124,6 +135,73 @@ class Board {
       } else {
         return this->evaluate<color::black>();
       };
+    };
+
+    std::string san(move_t move) {
+      constexpr std::array<char, 8> files {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
+      constexpr std::array<char, 8> ranks {'1', '2', '3', '4', '5', '6', '7', '8'};
+      if (move::castling(move)) {
+        if (move::to(move) == square::g1 || move::to(move) == square::g8) {
+          return "O-O";
+        } else {
+          return "O-O-O";
+        };
+      };
+      bool is_checkmate = false;
+      this->make(move);
+      if (this->outcome() & outcome::checkmate) {
+        is_checkmate = true;
+      };
+      this->unmake();
+      std::string san = "";
+      if (piece::type(move::moved_piece(move)) == piece::pawn) {
+        if (move::capture(move)) {
+         san += files[move::from(move) & 0b111] + "x";
+        };
+        san += square::to_string(move::to(move));
+        if (move::promotion(move)) {
+          san += "=" + piece::san_string(move::target_piece(move));
+        };
+      } else {
+        san += piece::san_string(move::moved_piece(move));
+        bitboard_t possible_pieces = this->bitboards[move::moved_piece(move)] & attack_array[move::moved_piece(move)](move::to(move), this->bitboards[piece::none]) & ~bitboard(move::from(move));
+        if (possible_pieces & bitboard::files[move::from(move) & 0b111]) {
+          san += files[move::from(move) & 0b111];
+        };
+        if (possible_pieces & bitboard::ranks[(move::from(move) >> 3) ^ 0b111]) {
+          san += ranks[(move::from(move) >> 3) ^ 0b111];
+        };
+        if (move::capture(move)) {
+          san += "x";
+        };
+        san += square::to_string(move::to(move));
+      };
+      if (is_checkmate) {
+        san += "#";
+      } else if (move::check(move)) {
+        san += "+";
+      };
+      return san;
+    };
+
+    std::string pgn() {
+      Board pgn_board = Board(this->starting_fen);
+      std::string pgn = "";
+      pgn += "[FEN \"" + pgn_board.starting_fen + "\"]\n";
+     for (int move_counter = 0; move_counter < this->history.size(); move_counter++) {
+        if (move_counter % 2 == 0) {
+          pgn += std::to_string((move_counter >> 1) + 1) + ". ";
+        };
+        undo_t undo = this->history[move_counter];
+        move_t move = undo.move;
+        pgn += pgn_board.san(move) + " ";
+        pgn_board.make(move);
+      };
+      if (pgn_board.outcome() & outcome::draw) {
+        pgn += "1/2-1/2 ";
+      };
+      pgn.pop_back();
+      return pgn;
     };
 
     template <color_t color>
@@ -140,15 +218,15 @@ class Board {
       if (alpha < score) {
         alpha = score;
       };
-      move_stack_t moves = this->generate<color, capture|check, move_stack_t>();
-      outcome_t outcome = this->outcome<color>(moves.size());
-      if (outcome & outcome::checkmate) {
-        nodes++;
-        return search_result_t {continuation_t {}, -eval::checkmate};
-      } else if (outcome & outcome::draw) {
-        nodes++;
-        return search_result_t {continuation_t {}, eval::draw};
-      };
+      move_stack_t moves = this->generate<color, check | capture, move_stack_t>();
+      // outcome_t outcome = this->outcome<color>(moves.size());
+      // if (outcome & outcome::checkmate) {
+      //   nodes++;
+      //   return search_result_t {continuation_t {}, -eval::checkmate};
+      // } else if (outcome & outcome::draw) {
+      //   nodes++;
+      //   return search_result_t {continuation_t {}, eval::draw};
+      // };
       moves.sort(move::ordering);
       for (move_t move : moves) {
         this->make(move);
@@ -250,6 +328,7 @@ class Board {
 
     // set the board to a given fen string
     void set_fen(std::string fen=fen::startpos) {
+      this->starting_fen = fen;
       // clear lists and stacks
       this->bitboards.fill(bitboard::none);
       this->pieces.fill(piece::none);

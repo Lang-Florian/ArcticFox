@@ -21,11 +21,11 @@
   0000 0000 0000 0000 0000 1111 1100 0000     to
   0000 0000 0000 0001 1111 0000 0000 0000     target_piece
   0000 0000 0000 0010 0000 0000 0000 0000     double_pawn_push
-  0000 0000 0000 0100 0000 0000 0000 0000     castling
-  0000 0000 0000 1000 0000 0000 0000 0000     enpassant
-  0000 0001 1111 0000 0000 0000 0000 0000     moved_piece
-  0011 1110 0000 0000 0000 0000 0000 0000     captured_piece
-  0100 0000 0000 0000 0000 0000 0000 0000     promotion
+  0000 0000 0000 0100 0000 0000 0000 0000     enpassant
+  0000 0000 1111 1000 0000 0000 0000 0000     moved_piece
+  0001 1111 0000 0000 0000 0000 0000 0000     captured_piece
+  0010 0000 0000 0000 0000 0000 0000 0000     promotion
+  0100 0000 0000 0100 0000 0000 0000 0000     castling
   1000 0000 0000 0000 0000 0000 0000 0000     check
 
 */
@@ -47,11 +47,11 @@ namespace move {
            (to << 6) |
            (target_piece << 12) |
            (double_pawn_push << 17) |
-           (castling << 18) |
-           (enpassant << 19) |
-           (moved_piece << 20) |
-           (captured_piece << 25) |
-           (promotion << 30) |
+           (enpassant << 18) |
+           (moved_piece << 19) |
+           (captured_piece << 24) |
+           (promotion << 29) |
+           (castling << 30) |
            (check << 31);
   };
 
@@ -72,23 +72,23 @@ namespace move {
     return (move >> 17) & 0b1;
   };
 
-  bool castling(move_t move) {
+  bool enpassant(move_t move) {
     return (move >> 18) & 0b1;
   };
 
-  bool enpassant(move_t move) {
-    return (move >> 19) & 0b1;
-  };
-
   piece_t moved_piece(move_t move) {
-    return (move >> 20) & 0b11111;
+    return (move >> 19) & 0b11111;
   };
 
   piece_t captured_piece(move_t move) {
-    return (move >> 25) & 0b11111;
+    return (move >> 24) & 0b11111;
   };
 
   bool promotion(move_t move) {
+    return (move >> 29) & 0b1;
+  };
+
+  bool castling(move_t move) {
     return (move >> 30) & 0b1;
   };
   
@@ -120,8 +120,7 @@ namespace move {
   };
 
   move_t mvv_lva_key(move_t move) {
-    constexpr move_t move_piece_mask =     0b00000001111100000000000000000000;
-    constexpr move_t captured_piece_mask = 0b00111110000000000000000000000000;
+    constexpr move_t move_piece_mask = 0b11111 << 19;
     if (capture(move)) {
       return move ^ move_piece_mask;
     };

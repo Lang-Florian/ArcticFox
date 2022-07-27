@@ -936,7 +936,7 @@ class Board {
           is_always_check ||
           (this->rook_discoverable[color] & bitboard(from)) ||
           ((this->bishop_discoverable[color] & bitboard(from)) && !(this->king_bishop_ray[opponent] & bitboard(this->enpassant))) ||
-          (attack<rook>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from) & ~bitboard(this->enpassant + enpassant_offset)) & (this->bitboards[rook] | this->bitboards[queen]))
+          (attack<rook>(this->king_square[opponent], (this->bitboards[piece::none] & ~bitboard(from) & ~bitboard(this->enpassant + enpassant_offset)) | bitboard(this->enpassant)) & (this->bitboards[rook] | this->bitboards[queen]))
         );
         bool do_enpassant = (
           (this->king_bishop_ray[color] & bitboard(this->enpassant)) &&
@@ -968,7 +968,7 @@ class Board {
           is_always_check ||
           (this->rook_discoverable[color] & bitboard(from)) ||
           ((this->bishop_discoverable[color] & bitboard(from)) && !(this->king_bishop_ray[opponent] & bitboard(this->enpassant))) ||
-          (attack<rook>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from) & ~bitboard(this->enpassant + enpassant_offset)) & (this->bitboards[rook] | this->bitboards[queen]))
+          (attack<rook>(this->king_square[opponent], (this->bitboards[piece::none] & ~bitboard(from) & ~bitboard(this->enpassant + enpassant_offset)) | bitboard(this->enpassant)) & (this->bitboards[rook] | this->bitboards[queen]))
         );
         bool do_enpassant = (
           (
@@ -1059,12 +1059,13 @@ class Board {
         );
         promoting_pawns = free_pawns & ~(occupancy >> 8) & (evasion_target >> 8) & bitboard::rank_2;
       };
-      bitboard_t discoverable_pushable_pawns = pushable_pawns & (this->bishop_discoverable[color] | (this->rook_discoverable[color] & bitboard::ranks[this->king_square[opponent] >> 3]));
-      bitboard_t discoverable_doublepushable_pawns = doublepushable_pawns & (this->bishop_discoverable[color] | (this->rook_discoverable[color] & bitboard::ranks[this->king_square[opponent] >> 3]));
-      bitboard_t discoverable_promoting_pawns = promoting_pawns & (this->bishop_discoverable[color] | (this->rook_discoverable[color] & bitboard::ranks[this->king_square[opponent] >> 3]));
-      bitboard_t non_discoverable_pushable_pawns = pushable_pawns & ~(this->bishop_discoverable[color] | (this->rook_discoverable[color] & bitboard::ranks[this->king_square[opponent] >> 3]));
-      bitboard_t non_discoverable_doublepushable_pawns = doublepushable_pawns & ~(this->bishop_discoverable[color] | (this->rook_discoverable[color] & bitboard::ranks[this->king_square[opponent] >> 3]));
-      bitboard_t non_discoverable_promoting_pawns = promoting_pawns & ~(this->bishop_discoverable[color] | (this->rook_discoverable[color] & bitboard::ranks[this->king_square[opponent] >> 3]));
+      bitboard_t discoverable = this->bishop_discoverable[color] | (this->rook_discoverable[color] & bitboard::ranks[(this->king_square[opponent] >> 3) ^ 0b111]);
+      bitboard_t discoverable_pushable_pawns = pushable_pawns & discoverable;
+      bitboard_t discoverable_doublepushable_pawns = doublepushable_pawns & discoverable;
+      bitboard_t discoverable_promoting_pawns = promoting_pawns & discoverable;
+      bitboard_t non_discoverable_pushable_pawns = pushable_pawns & ~discoverable;
+      bitboard_t non_discoverable_doublepushable_pawns = doublepushable_pawns & ~discoverable;
+      bitboard_t non_discoverable_promoting_pawns = promoting_pawns & ~discoverable;
       bitboard_t knight_promoting_pawns;
       bitboard_t bishop_promoting_pawns;
       bitboard_t rook_promoting_pawns;
@@ -1124,32 +1125,32 @@ class Board {
         while (pushable_pawns) {
           square_t from = pop_lsb(pushable_pawns);
           square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, pawn, piece::none, false, false, false, false, bitboard(to) & pawn_checking_squares));
+          moves.push(move::move(from, to, pawn, pawn, piece::none, false, false, false, false, (bitboard(to) & pawn_checking_squares) || (bitboard(from) & discoverable)));
         };
         while (doublepushable_pawns) {
           square_t from = pop_lsb(doublepushable_pawns);
           square_t to = from + doublepush_offset;
-          moves.push(move::move(from, to, pawn, pawn, piece::none, true, false, false, false, bitboard(to) & pawn_checking_squares));
+          moves.push(move::move(from, to, pawn, pawn, piece::none, true, false, false, false, (bitboard(to) & pawn_checking_squares) || (bitboard(from) & discoverable)));
         };
         while (knight_promoting_pawns) {
           square_t from = pop_lsb(knight_promoting_pawns);
           square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, knight, piece::none, false, false, false, true, bitboard(to) & knight_checking_squares));
+          moves.push(move::move(from, to, pawn, knight, piece::none, false, false, false, true, (bitboard(to) & knight_checking_squares) || (bitboard(from) & discoverable)));
         };
         while (bishop_promoting_pawns) {
           square_t from = pop_lsb(bishop_promoting_pawns);
           square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, bishop, piece::none, false, false, false, true, bitboard(to) & bishop_checking_squares));
+          moves.push(move::move(from, to, pawn, bishop, piece::none, false, false, false, true, (bitboard(to) & bishop_checking_squares) || (bitboard(from) & discoverable)));
         };
         while (rook_promoting_pawns) {
           square_t from = pop_lsb(rook_promoting_pawns);
           square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, rook, piece::none, false, false, false, true, bitboard(to) & rook_checking_squares));
+          moves.push(move::move(from, to, pawn, rook, piece::none, false, false, false, true, (bitboard(to) & rook_checking_squares) || (bitboard(from) & discoverable)));
         };
         while (queen_promoting_pawns) {
           square_t from = pop_lsb(queen_promoting_pawns);
           square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, queen, piece::none, false, false, false, true, bitboard(to) & (bishop_checking_squares | rook_checking_squares)));
+          moves.push(move::move(from, to, pawn, queen, piece::none, false, false, false, true, (bitboard(to) & (bishop_checking_squares | rook_checking_squares)) || (bitboard(from) & discoverable)));
         };
       } else {
         moves += popcount(pushable_pawns);
@@ -1179,8 +1180,10 @@ class Board {
       bitboard_t pawn_checking_squares = attack<opponent_pawn>(this->king_square[opponent]);
       bitboard_t knight_checking_squares = attack<knight>(this->king_square[opponent]);
       bitboard_t bishop_checking_squares = attack<bishop>(this->king_square[opponent], this->bitboards[piece::none]);
+      bitboard_t bishop_checking_squares_no_pawns = attack<bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~this->bitboards[pawn]);
       bitboard_t rook_checking_squares = attack<rook>(this->king_square[opponent], this->bitboards[piece::none]);
       bitboard_t queen_checking_squares = (bishop_checking_squares | rook_checking_squares);
+      bitboard_t queen_checking_squares_no_pawns = (bishop_checking_squares_no_pawns | rook_checking_squares);
       bitboard_t non_discoverable_target = bitboard::none;
       bitboard_t non_discoverable_knight_promoting_target = bitboard::none;
       bitboard_t non_discoverable_bishop_promoting_target = bitboard::none;
@@ -1190,9 +1193,9 @@ class Board {
       if constexpr (gen & check) {
         non_discoverable_target |= pawn_checking_squares;
         non_discoverable_knight_promoting_target |= knight_checking_squares & promotion_rank;
-        non_discoverable_bishop_promoting_target |= bishop_checking_squares & promotion_rank;
+        non_discoverable_bishop_promoting_target |= bishop_checking_squares_no_pawns & promotion_rank;
         non_discoverable_rook_promoting_target |= rook_checking_squares & promotion_rank;
-        non_discoverable_queen_promoting_target |= (bishop_checking_squares | rook_checking_squares) & promotion_rank;
+        non_discoverable_queen_promoting_target |= queen_checking_squares_no_pawns & promotion_rank;
         discoverable_target |= bitboard::full;
       };
       if constexpr (gen & capture) {
@@ -1277,6 +1280,10 @@ class Board {
         bitboard_t possible_to_bishop = attack<pawn>(from) & occupancy_opponent & non_discoverable_bishop_promoting_target;
         bitboard_t possible_to_rook = attack<pawn>(from) & occupancy_opponent & non_discoverable_rook_promoting_target;
         bitboard_t possible_to_queen = attack<pawn>(from) & occupancy_opponent & non_discoverable_queen_promoting_target;
+        if constexpr ((gen & check) && !(gen & capture)) {
+          possible_to_bishop &= attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
+          possible_to_queen &= attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
+        };
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to_knight) {
             square_t to = pop_lsb(possible_to_knight);
@@ -1284,7 +1291,7 @@ class Board {
           };
           while (possible_to_bishop) {
             square_t to = pop_lsb(possible_to_bishop);
-            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, bitboard(to) & bishop_checking_squares));
+            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, bitboard(to) & attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from))));
           };
           while (possible_to_rook) {
             square_t to = pop_lsb(possible_to_rook);
@@ -1292,7 +1299,7 @@ class Board {
           };
           while (possible_to_queen) {
             square_t to = pop_lsb(possible_to_queen);
-            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, bitboard(to) & queen_checking_squares));
+            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, bitboard(to) & attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from))));
           };
         } else {
           moves += popcount(possible_to_knight) + popcount(possible_to_bishop) + popcount(possible_to_rook) + popcount(possible_to_queen);
@@ -1316,6 +1323,10 @@ class Board {
         bitboard_t possible_to_bishop = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_bishop_promoting_target;
         bitboard_t possible_to_rook = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_rook_promoting_target;
         bitboard_t possible_to_queen = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_queen_promoting_target;
+        if constexpr ((gen & check) && !(gen & capture)) {
+          possible_to_bishop &= attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
+          possible_to_queen &= attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
+        };
         if constexpr (typeid(T) == typeid(move_stack_t)) {
           while (possible_to_knight) {
             square_t to = pop_lsb(possible_to_knight);
@@ -1323,7 +1334,7 @@ class Board {
           };
           while (possible_to_bishop) {
             square_t to = pop_lsb(possible_to_bishop);
-            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, bitboard(to) & bishop_checking_squares));
+            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, bitboard(to) & attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from))));
           };
           while (possible_to_rook) {
             square_t to = pop_lsb(possible_to_rook);
@@ -1331,7 +1342,7 @@ class Board {
           };
           while (possible_to_queen) {
             square_t to = pop_lsb(possible_to_queen);
-            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, bitboard(to) & queen_checking_squares));
+            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, bitboard(to) & attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from))));
           };
         } else {
           moves += popcount(possible_to_knight) + popcount(possible_to_bishop) + popcount(possible_to_rook) + popcount(possible_to_queen);

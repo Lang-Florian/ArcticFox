@@ -53,14 +53,8 @@ int main() {
     cin >> move;
     board.push_uci(move);
     pretty_print(board);
-    search_result_t result = board.search(8);
-    cout << "Score: " << result.score << endl;
-    cout << "PV: ";
-    for (move_t m : result.continuation) {
-      cout << move::uci(m) << " ";
-    }
-    cout << endl;
-    board.make(result.continuation[0]);
+    search_result_t result = board.search(9);
+    board.make(result.pv[0]);
   }
 
   // Board board;
@@ -70,7 +64,7 @@ int main() {
   // cout << board.fen() << endl;
   // result = board.search(7);
   // cout << result.score << endl;
-  // for (move_t move : result.continuation) {
+  // for (move_t move : result.pv) {
   //   cout << move::uci(move) << endl;
   // };
   // cout << endl;
@@ -79,7 +73,7 @@ int main() {
   // cout << board.fen() << endl;
   // result = board.search(7);
   // cout << result.score << endl;
-  // for (move_t move : result.continuation) {
+  // for (move_t move : result.pv) {
   //   cout << move::uci(move) << endl;
   // };
   // cout << endl;
@@ -88,7 +82,7 @@ int main() {
   // cout << board.fen() << endl;
   // result = board.search(7);
   // cout << result.score << endl;
-  // for (move_t move : result.continuation) {
+  // for (move_t move : result.pv) {
   //   cout << move::uci(move) << endl;
   // };
   // cout << endl;
@@ -97,7 +91,7 @@ int main() {
   // cout << board.fen() << endl;
   // result = board.search(7);
   // cout << result.score << endl;
-  // for (move_t move : result.continuation) {
+  // for (move_t move : result.pv) {
   //   cout << move::uci(move) << endl;
   // };
   // cout << endl;
@@ -106,7 +100,7 @@ int main() {
   // cout << board.fen() << endl;
   // result = board.search(7);
   // cout << result.score << endl;
-  // for (move_t move : result.continuation) {
+  // for (move_t move : result.pv) {
   //   cout << move::uci(move) << endl;
   // };
   // cout << endl;
@@ -115,7 +109,7 @@ int main() {
   // cout << board.fen() << endl;
   // result = board.search(7);
   // cout << result.score << endl;
-  // for (move_t move : result.continuation) {
+  // for (move_t move : result.pv) {
   //   cout << move::uci(move) << endl;
   // };
   // cout << endl;

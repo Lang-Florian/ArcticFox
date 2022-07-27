@@ -35,7 +35,7 @@ struct undo_t {
 
 
 struct search_result_t {
-  continuation_t continuation;
+  pv_t pv;
   score_t score;
 };
 
@@ -165,11 +165,14 @@ class Board {
       } else {
         san += piece::san_string(move::moved_piece(move));
         bitboard_t possible_pieces = this->bitboards[move::moved_piece(move)] & attack_array[move::moved_piece(move)](move::to(move), this->bitboards[piece::none]) & ~bitboard(move::from(move));
-        if (possible_pieces & bitboard::files[move::from(move) & 0b111]) {
-          san += files[move::from(move) & 0b111];
-        };
-        if (possible_pieces & bitboard::ranks[(move::from(move) >> 3) ^ 0b111]) {
-          san += ranks[(move::from(move) >> 3) ^ 0b111];
+        if (possible_pieces) {
+          if ((possible_pieces & bitboard::files[move::from(move) & 0b111]) && (possible_pieces & bitboard::ranks[(move::from(move) >> 3) ^ 0b111])) {
+            san += files[move::from(move) & 0b111] + ranks[(move::from(move) >> 3) ^ 0b111];
+          } else if (possible_pieces & bitboard::files[move::from(move) & 0b111]) {
+            san += ranks[(move::from(move) >> 3) ^ 0b111];
+          } else {
+            san += files[move::from(move) & 0b111];
+          };
         };
         if (move::capture(move)) {
           san += "x";
@@ -205,15 +208,15 @@ class Board {
     };
 
     template <color_t color>
-    search_result_t q_search(int depth, score_t alpha, score_t beta, u64_t& tbhits, u64_t& nodes) {
+    score_t q_search(int depth, score_t alpha, score_t beta, u64_t& tbhits, u64_t& nodes) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       if (depth == 0) {
         nodes++;
-        return search_result_t{continuation_t {}, this->evaluate<color>()};
+        return this->evaluate<color>();
       };
       score_t score = this->evaluate<color>();
       if (score >= beta) {
-        return search_result_t{continuation_t {}, beta};
+        return beta;
       };
       if (alpha < score) {
         alpha = score;
@@ -222,47 +225,46 @@ class Board {
       // outcome_t outcome = this->outcome<color>(moves.size());
       // if (outcome & outcome::checkmate) {
       //   nodes++;
-      //   return search_result_t {continuation_t {}, -eval::checkmate};
+      //   return -eval::checkmate;
       // } else if (outcome & outcome::draw) {
       //   nodes++;
-      //   return search_result_t {continuation_t {}, eval::draw};
+      //   return eval::draw;
       // };
       moves.sort(move::ordering);
       for (move_t move : moves) {
         this->make(move);
-        search_result_t search_result = this->q_search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tbhits, nodes);
+        score = eval::add_depth(this->q_search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tbhits, nodes));
         this->unmake();
-        search_result.score = eval::add_depth(search_result.score);
-        if (search_result.score >= beta) {
+        if (score >= beta) {
           nodes++;
-          return search_result_t {continuation_t {}, beta};
+          return beta;
         };
-        if (search_result.score > alpha) {
-          alpha = search_result.score;
+        if (score > alpha) {
+          alpha = score;
         };
       };
-      return search_result_t {continuation_t {}, alpha};
+      return alpha;
     };
 
     template <color_t color>
-    search_result_t search(int depth, score_t alpha, score_t beta, u64_t& tbhits, u64_t& nodes) {
+    search_result_t search(int depth, score_t alpha, score_t beta, u64_t& tbhits, u64_t& nodes, pv_t old_pv=pv_t {}) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       if (depth == 0) {
-        return q_search<color>(MAX_Q_DEPTH, alpha, beta, tbhits, nodes);
+        return search_result_t {pv_t {}, q_search<color>(MAX_Q_DEPTH, alpha, beta, tbhits, nodes)};
       };
       if (this->position_existed<color>()) {
         nodes++;
-        return search_result_t {continuation_t {}, eval::draw};
+        return search_result_t {pv_t {}, eval::draw};
       };
-      continuation_t continuation;
+      pv_t pv {};
       transposition::entry_t& entry = transposition::get(this->zobrist.hash);
       if (entry.is_valid(this->zobrist.hash, depth)) {
         tbhits++;
         u8_t bound = entry.get_bound();
         if (bound == transposition::exact_bound) {
           nodes++;
-          continuation.push(entry.move);
-          return search_result_t {continuation, entry.get_score()};
+          pv.push(entry.move);
+          return search_result_t {pv, entry.get_score()};
         } else if (bound == transposition::upper_bound && beta > entry.get_score()) {
           beta = entry.get_score();
         } else if (bound == transposition::lower_bound && alpha < entry.get_score()) {
@@ -270,19 +272,27 @@ class Board {
         };
         if (alpha >= beta) {
           nodes++;
-          return search_result_t {continuation, entry.get_score()};
+          return search_result_t {pv, entry.get_score()};
         };
       };
       move_stack_t moves = this->generate<color, legal, move_stack_t>();
       outcome_t outcome = this->outcome<color>(moves.size());
       if (outcome & outcome::checkmate) {
         nodes++;
-        return search_result_t {continuation_t {}, -eval::checkmate};
+        return search_result_t {pv_t {}, -eval::checkmate};
       } else if (outcome & outcome::draw) {
         nodes++;
-        return search_result_t {continuation_t {}, eval::draw};
+        return search_result_t {pv_t {}, eval::draw};
       };
       moves.sort(move::reverse_ordering);
+      if (old_pv.size() > 0) {
+        move_t move = old_pv.pop();
+        if (moves.contains(move)) {
+          moves.push(move);
+        } else {
+          pv.clear();
+        };
+      };
       if (moves.contains(entry.move)) {
         moves.push(entry.move);
       };
@@ -290,40 +300,43 @@ class Board {
       u8_t bound = transposition::upper_bound;
       for (move_t move : moves) {
         this->make(move);
-        search_result_t search_result = this->search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tbhits, nodes);
+        search_result_t search_result = this->search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tbhits, nodes, old_pv);
         this->unmake();
         search_result.score = eval::add_depth(search_result.score);
         if (search_result.score > alpha) {
-          continuation.clear();
-          continuation.push(move);
-          continuation.append(search_result.continuation);
+          pv = search_result.pv.copy();
+          pv.push(move);
           if (search_result.score >= beta) {
             entry.set(this->zobrist.hash, move, search_result.score, depth, transposition::lower_bound);
-            return search_result_t {continuation, beta};
+            return search_result_t {pv, beta};
           };
           alpha = search_result.score;
           bound = transposition::exact_bound;
         };
       };
-      entry.set(this->zobrist.hash, continuation[0], alpha, depth, bound);
-      return search_result_t {continuation, alpha};
+      entry.set(this->zobrist.hash, pv[0], alpha, depth, bound);
+      return search_result_t {pv, alpha};
     };
 
     search_result_t search(int depth) {
-      if (this->turn == color::white) {
+      search_result_t search_result;
+      pv_t pv {};
+      for (int i = 1; i <= depth; i++) {
         u64_t tbhits = 0;
         u64_t nodes = 0;
-        search_result_t search_result = this->search<color::white>(depth, -eval::inf, eval::inf, tbhits, nodes);
-        std::cout << (int)tbhits << " " << (int)nodes << std::endl;
-        return search_result;
-      } else {
-        u64_t tbhits = 0;
-        u64_t nodes = 0;
-        search_result_t search_result = this->search<color::black>(depth, -eval::inf, eval::inf, tbhits, nodes);
-        search_result.score = -search_result.score;
-        std::cout << (int)tbhits << " " << (int)nodes << std::endl;
-        return search_result;
+        if (this->turn == color::white) search_result = this->search<color::white>(i, -eval::inf, eval::inf, tbhits, nodes, pv);
+        else search_result = this->search<color::black>(i, -eval::inf, eval::inf, tbhits, nodes, pv);
+        if (this->turn == color::black) search_result.score = -search_result.score;
+        pv = search_result.pv.copy();
+        std::cout << "Depth: " << i;
+        std::cout << "\tScore: " << (int)search_result.score << "\tPV: ";
+        search_result.pv.reverse();
+        for (move_t move : search_result.pv) {
+          std::cout << move::uci(move) << " ";
+        };
+        std::cout << std::endl << "Tablebase hits: " << (int)tbhits << " Nodes: " << (int)nodes << std::endl;
       };
+      return search_result;
     };
 
     // set the board to a given fen string

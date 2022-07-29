@@ -208,7 +208,7 @@ class Board {
     };
 
     template <color_t color>
-    score_t q_search(int depth, score_t alpha, score_t beta, u64_t& tbhits, u64_t& nodes) {
+    score_t q_search(int depth, score_t alpha, score_t beta, u64_t& tthits, u64_t& nodes) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       if (depth == 0) {
         nodes++;
@@ -233,7 +233,7 @@ class Board {
       moves.sort(move::ordering);
       for (move_t move : moves) {
         this->make(move);
-        score = eval::add_depth(this->q_search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tbhits, nodes));
+        score = eval::add_depth(this->q_search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tthits, nodes));
         this->unmake();
         if (score >= beta) {
           nodes++;
@@ -247,10 +247,10 @@ class Board {
     };
 
     template <color_t color>
-    search_result_t search(int depth, score_t alpha, score_t beta, u64_t& tbhits, u64_t& nodes, pv_t old_pv=pv_t {}) {
+    search_result_t search(int depth, score_t alpha, score_t beta, u64_t& tthits, u64_t& nodes, pv_t old_pv=pv_t {}) {
       constexpr color_t opponent = color::compiletime::opponent(color);
       if (depth == 0) {
-        return search_result_t {pv_t {}, q_search<color>(MAX_Q_DEPTH, alpha, beta, tbhits, nodes)};
+        return search_result_t {pv_t {}, q_search<color>(MAX_Q_DEPTH, alpha, beta, tthits, nodes)};
       };
       if (this->position_existed<color>()) {
         nodes++;
@@ -259,7 +259,7 @@ class Board {
       pv_t pv {};
       transposition::entry_t& entry = transposition::get(this->zobrist.hash);
       if (entry.is_valid(this->zobrist.hash, depth)) {
-        tbhits++;
+        tthits++;
         u8_t bound = entry.get_bound();
         if (bound == transposition::exact_bound) {
           nodes++;
@@ -300,7 +300,7 @@ class Board {
       u8_t bound = transposition::upper_bound;
       for (move_t move : moves) {
         this->make(move);
-        search_result_t search_result = this->search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tbhits, nodes, old_pv);
+        search_result_t search_result = this->search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tthits, nodes, old_pv);
         this->unmake();
         search_result.score = eval::add_depth(search_result.score);
         if (search_result.score > alpha) {
@@ -322,10 +322,10 @@ class Board {
       search_result_t search_result;
       pv_t pv {};
       for (int i = 1; i <= depth; i++) {
-        u64_t tbhits = 0;
+        u64_t tthits = 0;
         u64_t nodes = 0;
-        if (this->turn == color::white) search_result = this->search<color::white>(i, -eval::inf, eval::inf, tbhits, nodes, pv);
-        else search_result = this->search<color::black>(i, -eval::inf, eval::inf, tbhits, nodes, pv);
+        if (this->turn == color::white) search_result = this->search<color::white>(i, -eval::inf, eval::inf, tthits, nodes, pv);
+        else search_result = this->search<color::black>(i, -eval::inf, eval::inf, tthits, nodes, pv);
         if (this->turn == color::black) search_result.score = -search_result.score;
         pv = search_result.pv.copy();
         std::cout << "Depth: " << i;
@@ -334,7 +334,7 @@ class Board {
         for (move_t move : search_result.pv) {
           std::cout << move::uci(move) << " ";
         };
-        std::cout << std::endl << "Tablebase hits: " << (int)tbhits << " Nodes: " << (int)nodes << std::endl;
+        std::cout << std::endl << "Transposition hits: " << (int)tthits << " Nodes: " << (int)nodes << std::endl;
       };
       return search_result;
     };

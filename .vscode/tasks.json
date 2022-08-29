@@ -7,9 +7,9 @@
       "args": [
         "-fdiagnostics-color=always",
         "-g",
-        "chessfox.cpp",
+        "arcticfox.cpp",
         "-o",
-        "${fileDirname}/chessfox",
+        "${fileDirname}/arcticfox",
         "-std=c++23",
         "-fconstexpr-ops-limit=100000000000",
         "-Ofast",

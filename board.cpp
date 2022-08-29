@@ -11,6 +11,7 @@
 #include <array>
 #include <iostream>
 #include <string>
+#include <type_traits>
 
 #include "attack_rays.cpp"
 #include "attacks.cpp"
@@ -781,7 +782,7 @@ class Board {
       constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
 
       T moves;
-      if constexpr (typeid(T) == typeid(move_stack_t)) {
+      if constexpr (std::is_same_v<T, move_stack_t>) {
         moves.clear();
       } else {
         moves = 0;
@@ -935,7 +936,7 @@ class Board {
           (this->castling & castling::white_queen) &&
           (((gen & check) && (bitboard::d1 & opponent_king_rook_attack_future)) || ((gen & quiet) && !(bitboard::d1 & opponent_king_rook_attack_future)))
         );
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           moves.push(move::move(square::e1, square::g1, piece::white_king, piece::white_king, piece::none, false, false, true, false, bitboard::f1 & opponent_king_rook_attack_future));
           moves.pop(!castle_king);
           moves.push(move::move(square::e1, square::c1, piece::white_king, piece::white_king, piece::none, false, false, true, false, bitboard::d1 & opponent_king_rook_attack_future));
@@ -956,7 +957,7 @@ class Board {
           (this->castling & castling::black_queen) &&
           (((gen & check) && (bitboard::d8 & opponent_king_rook_attack_future)) || ((gen & quiet) && !(bitboard::d8 & opponent_king_rook_attack_future)))
         );
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           moves.push(move::move(square::e8, square::g8, piece::black_king, piece::black_king, piece::none, false, false, true, false, bitboard::f8 & opponent_king_rook_attack_future));
           moves.pop(!castle_king);
           moves.push(move::move(square::e8, square::c8, piece::black_king, piece::black_king, piece::none, false, false, true, false, bitboard::d8 & opponent_king_rook_attack_future));
@@ -990,7 +991,7 @@ class Board {
         target |= this->bitboards[opponent];
       };
       bitboard_t possible_to = attack<king>(this->king_square[color]) & ~occupancy_color & ~this->attacks_no_king[opponent] & target;
-      if constexpr (typeid(T) == typeid(move_stack_t)) {
+      if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
           moves.push(move::move(this->king_square[color], to, king, king, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
@@ -1040,7 +1041,7 @@ class Board {
             ((gen & check) && is_check)
           )
         );
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           moves.push(move::move(from, this->enpassant, pawn, pawn, opponent_pawn, false, true, false, false, is_check));
           moves.pop(!do_enpassant);
         } else {
@@ -1071,7 +1072,7 @@ class Board {
             ((gen & check) && is_check)
           )
         );
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           moves.push(move::move(from, this->enpassant, pawn, pawn, opponent_pawn, false, true, false, false, is_check));
           moves.pop(!do_enpassant);
         } else {
@@ -1213,7 +1214,7 @@ class Board {
           (non_discoverable_promoting_pawns & (non_discoverable_queen_promoting_target >> 8))
         );
       };
-      if constexpr (typeid(T) == typeid(move_stack_t)) {
+      if constexpr (std::is_same_v<T, move_stack_t>) {
         while (pushable_pawns) {
           square_t from = pop_lsb(pushable_pawns);
           square_t to = from + push_offset;
@@ -1311,7 +1312,7 @@ class Board {
       while (discoverable_promoting_free_pawns) {
         square_t from = pop_lsb(discoverable_promoting_free_pawns);
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, true));
@@ -1326,7 +1327,7 @@ class Board {
       while (discoverable_not_promoting_free_pawns) {
         square_t from = pop_lsb(discoverable_not_promoting_free_pawns);
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, true));
@@ -1338,7 +1339,7 @@ class Board {
       while (discoverable_promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(discoverable_promoting_bishop_pinned_pawns);
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, true));
@@ -1353,7 +1354,7 @@ class Board {
       while (discoverable_not_promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(discoverable_not_promoting_bishop_pinned_pawns);
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, true));
@@ -1376,7 +1377,7 @@ class Board {
           possible_to_bishop &= attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
           possible_to_queen &= attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
         };
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to_knight) {
             square_t to = pop_lsb(possible_to_knight);
             moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, bitboard(to) & knight_checking_squares));
@@ -1400,7 +1401,7 @@ class Board {
       while (non_discoverable_not_promoting_free_pawns) {
         square_t from = pop_lsb(non_discoverable_not_promoting_free_pawns);
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & non_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, bitboard(to) & pawn_checking_squares));
@@ -1419,7 +1420,7 @@ class Board {
           possible_to_bishop &= attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
           possible_to_queen &= attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
         };
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to_knight) {
             square_t to = pop_lsb(possible_to_knight);
             moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, bitboard(to) & knight_checking_squares));
@@ -1443,7 +1444,7 @@ class Board {
       while (non_discoverable_not_promoting_bishop_pinned_pawns) {
         square_t from = pop_lsb(non_discoverable_not_promoting_bishop_pinned_pawns);
         bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, bitboard(to) & pawn_checking_squares));
@@ -1481,7 +1482,7 @@ class Board {
       while (non_discoverable_free_knights) {
         square_t from = pop_lsb(non_discoverable_free_knights);
         bitboard_t possible_to = attack<knight>(from) & ~occupancy_color & non_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
@@ -1494,7 +1495,7 @@ class Board {
       while (discoverable_free_knights) {
         square_t from = pop_lsb(discoverable_free_knights);
         bitboard_t possible_to = attack<knight>(from) & ~occupancy_color & discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, true));
@@ -1532,7 +1533,7 @@ class Board {
       while (non_discoverable_bishop_pinned_bishops) {
         square_t from = pop_lsb(non_discoverable_bishop_pinned_bishops);
         bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & non_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
@@ -1545,7 +1546,7 @@ class Board {
       while (non_discoverable_free_bishops) {
         square_t from = pop_lsb(non_discoverable_free_bishops);
         bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & non_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
@@ -1558,7 +1559,7 @@ class Board {
       while (rook_discoverable_bishop_pinned_bishops) {
         square_t from = pop_lsb(rook_discoverable_bishop_pinned_bishops);
         bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & rook_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, true));
@@ -1571,7 +1572,7 @@ class Board {
       while (rook_discoverable_free_bishops) {
         square_t from = pop_lsb(rook_discoverable_free_bishops);
         bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & rook_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, true));
@@ -1609,7 +1610,7 @@ class Board {
       while (non_discoverable_rook_pinned_rooks) {
         square_t from = pop_lsb(non_discoverable_rook_pinned_rooks);
         bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & non_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
@@ -1622,7 +1623,7 @@ class Board {
       while (non_discoverable_free_rooks) {
         square_t from = pop_lsb(non_discoverable_free_rooks);
         bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & non_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
@@ -1635,7 +1636,7 @@ class Board {
       while (bishop_discoverable_rook_pinned_rooks) {
         square_t from = pop_lsb(bishop_discoverable_rook_pinned_rooks);
         bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & bishop_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, true));
@@ -1648,7 +1649,7 @@ class Board {
       while (bishop_discoverable_free_rooks) {
         square_t from = pop_lsb(bishop_discoverable_free_rooks);
         bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & bishop_discoverable_target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, true));
@@ -1682,7 +1683,7 @@ class Board {
       while (bishop_pinned_queens) {
         square_t from = pop_lsb(bishop_pinned_queens);
         bitboard_t possible_to = attack<piece::bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
@@ -1695,7 +1696,7 @@ class Board {
       while (rook_pinned_queens) {
         square_t from = pop_lsb(rook_pinned_queens);
         bitboard_t possible_to = attack<piece::rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
@@ -1708,7 +1709,7 @@ class Board {
       while (free_queens) {
         square_t from = pop_lsb(free_queens);
         bitboard_t possible_to = attack<piece::queen>(from, occupancy) & ~occupancy_color & target;
-        if constexpr (typeid(T) == typeid(move_stack_t)) {
+        if constexpr (std::is_same_v<T, move_stack_t>) {
           while (possible_to) {
             square_t to = pop_lsb(possible_to);
             moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));

@@ -35,6 +35,7 @@ void do_perft(std::string fen, int depth) {
 
 
 int main() {
+  ascii_art();
   transposition::table.fill(transposition::entry_t {0, 0, 0});
 
   // do_perft(fen::startpos, 7);

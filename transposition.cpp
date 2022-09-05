@@ -38,6 +38,7 @@ namespace transposition {
     move_t move;
     u32_t flags;
 
+    // update a hash entry
     void set(hash_t hash, move_t move, score_t score, u8_t depth, u8_t bound) {
       this->hash_validation = (hash & validation_mask) >> validation_shift;
       this->move = move;
@@ -48,22 +49,27 @@ namespace transposition {
       );
     };
 
+    // get the move from a hash entry
     move_t get_move() {
       return this->move;
     };
 
+    // get depth from a hash entry
     u8_t get_depth() {
       return (flags & depth_mask) >> depth_shift;
     };
 
+    // get score from a hash entry
     score_t get_score() {
       return (flags & score_mask) >> score_shift;
     };
 
+    // get bound from a hash entry
     u8_t get_bound() {
       return (flags & bound_mask) >> bound_shift;
     };
 
+    // check if a hash entry is valid
     bool is_valid(hash_t hash, u8_t depth) {
       return (
         ((hash & validation_mask) >> validation_shift == this->hash_validation) &&
@@ -75,11 +81,9 @@ namespace transposition {
 
   static std::array<entry_t, 1ULL << TABLE_SIZE_LOG2> table;
 
-
   entry_t& get(hash_t hash) {
     return table[hash & index_mask];
   };
-
 
   u64_t table_size() {
     return sizeof(entry_t) * (1ULL << TABLE_SIZE_LOG2);

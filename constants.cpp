@@ -19,6 +19,38 @@
 #define TABLE_SIZE_LOG2 30
 #define MAX_Q_DEPTH 32
 
+#define ENGINE_NAME "ArcticFox"
+#define VERSION "0.1"
+#define AUTHOR "N3U1R0N"
+
+std::string ascii_art = "                        ▒  ▒▒▒                              \n"
+                        "                       ▒▒▒▒▓▓█▓▒▒▒                          \n"
+                        "                       ▒▓▒▒▒▒▓▓▓▒▒▒                         \n"
+                        "                       ▒▓▓▓▓▓▓▓▒▒▓▓▒▒                       \n"
+                        "                     ▒▒▒▒▒▓▓▓▓▓▓▓▓▓▒▒                       \n"
+                        "                     ▒▒▒▓▓█▓██▓▓▓▓▒▒▒▒▒    ▒▓▓▒▒            \n"
+                        "                        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▓▒▒           \n"
+                        "                        ▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▒▒▓▓▓▓▒▓▓▓▒          \n"
+                        "                       ▒▒▒▒▒▒▒▒▓▓▒▒▒▓▓█▓▓▓▓▓▓▓▓█▓▒          \n"
+                        "                        ▒▓▓▓▓▓▓▓▓▓▒▓▓██▓▒▒▒▓▓▓▓█▓▒          \n"
+                        "             ▒▓▒         ▒▒▒▒▒▒▓▓▒▓▓██▓▓▒▒▒▒▓██▓▒▒          \n"
+                        "      ▒▒▒▒▒▒▒███▓           ▒▓▓▓▓▒▓▓▓▓▒▒▒▒▒▒▓▓▓▓▒           \n"
+                        "      ▒████▓▓▓██▒  ▒    ▒   ▒▓█▓▒▒▒▒▒▒▒▒▒▒▒▒▓▓▒             \n"
+                        "      ▒▓████████▒ ▓█▒  ▓█▒ ▒▓▓▓▒▒▒▒▒▓▒▒▒▒▓▓▓▓▒▒       ▒▒▓▓▒ \n"
+                        "▓▓▓▓▓▒ ▒▓███████▒ ▓█▒ ▒▓█▒▒▒█▓▓▓▓▒▓███▓▓▓███▓▓▒▒▒▒▒▒  ▒▓█▓▒ \n"
+                        "▓███▓▒ ▓████████▓▒▒▓▒ ▒██▓▒▓██▓▓▓▒▓██▓▓▓▓▒▓▓▓▒▒▓▓▓▒▒▒▒▒▓▓▓▒ \n"
+                        "▒▓██▓ ▒██████████▓██▓▒▓██▓▓▓██▓▒▒▒▓██▓▒▒▒▒▒▒▒▒▒▓█▓▓▓▓▒▒▒▓▒  \n"
+                        "▓████▒▒▓██████████████████████▒▒▒▒▒▓▓▒▒▒▒▒▒▓▓▒▒▓█▓▒▒▒▒▒▓▓▓▒ \n"
+                        "▓████▒ ▒▒▓█████▓▒▒▒▒▒▓████████▓▓▓▓▓██▓▓▓▓▒▒▒   ▓▓▒   ▒▓████▒\n"
+                        " ▒▒▒▒    ▓█████▓▒  ▒▒▓█████████▓▒▓▓███▓▒     ▒▒▓██▓▒ ▒▓▓▓▓▓▒\n"
+                        "         ▒▒▒▒▒▓▓    ▒███████▓▓▓▒▒▓█████▒     ▓█████▓        \n"
+                        "            ▒▒▒▒▒     ▒▒▒▓▒      ▒▒▒▒▒▒▒     ▒▒▓▓▓▓▒        \n"
+                        "                                                            \n"
+                        "    ▒▒▓▓▒              ▒█▒   ▓█▓▒      ▒▓▓▓▓▓▒              \n"
+                        "   ▒▓███▓  ▒▓▓▓▓▒▒▓█▓▓▒▓██▓▒▒▓▓▒▒▒█▓▓▓▒▓█▓▒▒▒ ▒▓▓▓▓▒ ▒▓▓▒▓▓▒\n"
+                        "  ▒██▒▓█▓ ▒██▒▒▒▓█▓   ▓█▓▒  ▓█▓▒██▓   ▒██▓▓▓▒▓█▓▒▓█▓ ▒███▒  \n"
+                        " ▒██▓▓▓██▒▓█▓▒  ▒██▓▒▒▓█▓▒▒▒██▒▒▒██▒▒ ▓█▓▒  ▒▓█▓▓██▒▒▓▓██▓  ";
+
 
 /*
 
@@ -263,11 +295,6 @@ namespace piece{
 // fen constants
 namespace fen {
   const std::string startpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-  const std::string pos2 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-  const std::string pos3 = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
-  const std::string pos4 = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
-  const std::string pos5 = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-  const std::string pos6 = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
 };
 
 
@@ -397,22 +424,20 @@ namespace outcome {
   };
 
   std::string to_string(outcome_t outcome) {
-    std::string string = "";
-    if (outcome == checkmate_white)       string += "1-0";
-    if (outcome == checkmate_black)       string += "0-1";
-    if (outcome == draw)                  string += "½–½";
-    if (outcome == stalemate)             string += "½–½ by Stalemate";
-    if (outcome == insufficient_material) string += "½–½ by Insufficient material";
-    if (outcome == fifty_move_rule)       string += "½–½ by Fifty move rule";
-    if (outcome == threefold_repetition)  string += "½–½ by Threefold repetition";
-    if (string.empty())                   string += "-";
-    return string;
+    if (outcome == checkmate_white)       return "1-0";
+    if (outcome == checkmate_black)       return "0-1";
+    if (outcome == draw)                  return "1/2-1/2";
+    if (outcome == stalemate)             return "1/2-1/2 by Stalemate";
+    if (outcome == insufficient_material) return "1/2-1/2 by Insufficient material";
+    if (outcome == fifty_move_rule)       return "1/2-1/2 by Fifty move rule";
+    if (outcome == threefold_repetition)  return "1/2-1/2 by Threefold repetition";
+    return "-";
   };
 };
 
 
 // move generation constants
-enum get_t {
+enum : gen_t {
   quiet =            0b001,
   check =            0b010,
   capture =          0b100,

@@ -25,11 +25,6 @@ namespace randomness {
   T generate() {
     return generator();
   };
-
-  template <>
-  u128_t generate<u128_t>() {
-    return ((u128_t)generator() << 64) | generator();
-  };
 };
 
 

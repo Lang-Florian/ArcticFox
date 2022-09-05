@@ -126,7 +126,7 @@ namespace eval {
   };
 
   template <piece_t piece>
-  score_t value(square_t square, float endgame_factor=0) {
+  score_t value(square_t square, u8_t endgame_factor=0) {
     if constexpr (piece == piece::white_pawn) {
       return pawn_value[square];
     } else if constexpr (piece == piece::black_pawn) {
@@ -148,16 +148,16 @@ namespace eval {
     } else if constexpr (piece == piece::black_queen) {
       return queen_value[square ^ 56];
     } else if constexpr (piece == piece::white_king) {
-      return endgame_factor * eval::king_value_endgame[square] +
-             (1 - endgame_factor) * eval::king_value_middlegame[square];
+      return ((endgame_factor * eval::king_value_endgame[square]) >> 8) +
+             (((256 - endgame_factor) * eval::king_value_middlegame[square]) >> 8);
     } else if constexpr (piece == piece::black_king) {
-      return endgame_factor * eval::king_value_endgame[square ^ 56] +
-             (1 - endgame_factor) * eval::king_value_middlegame[square ^ 56];
+      return ((endgame_factor * eval::king_value_endgame[square ^ 56]) >> 8) +
+             (((256 - endgame_factor) * eval::king_value_middlegame[square ^ 56]) >> 8);
     };
     return 0;
   };
 
-  constexpr score_t (*(value_array[32]))(square_t, float) = {
+  constexpr score_t (*(value_array[32]))(square_t, u8_t) = {
      value<0>,  value<1>,  value<2>,  value<3>,  value<4>,  value<5>,  value<6>,  value<7>,
      value<8>,  value<9>, value<10>, value<11>, value<12>, value<13>, value<14>, value<15>,
     value<16>, value<17>, value<18>, value<19>, value<20>, value<21>, value<22>, value<23>,

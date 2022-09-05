@@ -9,7 +9,7 @@
         "-g",
         "arcticfox.cpp",
         "-o",
-        "${fileDirname}/arcticfox",
+        "${fileDirname}/bin/arcticfox",
         "-std=c++23",
         "-fconstexpr-ops-limit=100000000000",
         "-Ofast",

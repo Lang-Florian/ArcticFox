@@ -33,10 +33,6 @@ class Stack {
       this->_size_ = 0;
     };
 
-    T& operator[](unsigned int index) {
-      return this->array[index];
-    };
-
     T* begin() {
       return this->array;
     };
@@ -45,69 +41,74 @@ class Stack {
       return this->array + this->_size_;
     };
 
+    // get an element from the stack
+    T& operator[](unsigned int index) {
+      return this->array[index];
+    };
+
+    // push an element onto the stack
     void push(T value) {
       this->array[this->_size_++] = value;
     };
 
+    // pop an element from the stack
     T pop() {
       return this->array[--this->_size_];
     };
 
-    T pop(auto check) {
-      return this->array[this->_size_ -= check];
+    // pop an element from the stack if an condition is met
+    T pop(auto condition) {
+      return this->array[this->_size_ -= condition];
     };
 
+    // get the size of the stack
     int size() {
       return this->_size_;
     };
 
+    // check if the stack is empty
     bool empty() {
       return this->_size_ == 0;
     };
 
+    // clear the stack
     void clear() {
       this->_size_ = 0;
     };
 
-    int index(auto check) {
-      return std::find_if(this->array, this->array + this->_size_, check) - this->array;
-    };
-
+    // check if the stack contains a value
     bool contains(T value) {
       return std::find(this->array, this->array + this->_size_, value) != this->array + this->_size_;
     };
 
-    bool contains(auto check) {
-      return std::find_if(this->array, this->array + this->_size_, check) != this->array + this->_size_;
+    // count the number of elements in the stack that satisfy a condition
+    int count(auto condition) {
+      return std::count_if(this->array, this->array + this->_size_, condition);
     };
 
-    int count(auto check) {
-      return std::count_if(this->array, this->array + this->_size_, check);
-    };
-
+    // sort the stack
     void sort() {
-      std::stable_sort(this->array, this->array + this->_size_);
+      std::sort(this->array, this->array + this->_size_);
     };
 
-    void sort(auto comparison) {
-      std::stable_sort(this->array, this->array + this->_size_, comparison);
+    // sort the stack with a custom comparator
+    void sort(auto comparator) {
+      std::sort(this->array, this->array + this->_size_, comparator);
     };
 
-    template <typename S>
-    S reduce(S initial, auto operation) {
-      return std::accumulate(this->array, this->array + this->_size_, initial, operation);
-    };
-
+    // reverse the stack
     void reverse() {
       std::reverse(this->array, this->array + this->_size_);
     };
 
+    // append another stack to this stack
     template <int OTHER_MAX_SIZE>
     void append(Stack<T, OTHER_MAX_SIZE> other) {
       std::copy(other.begin(), other.end(), this->array + this->_size_);
       this->_size_ += other.size();
     };
 
+    // create a copy of the stack
     Stack<T, MAX_SIZE> copy() {
       Stack<T, MAX_SIZE> copy;
       std::copy(this->array, this->array + this->_size_, copy.array);

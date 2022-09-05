@@ -7,11 +7,6 @@
 #define __TYPES__MODULE__
 
 
-#include <algorithm>
-#include <iostream>
-#include <string>
-
-
 /*
 
   most used types

@@ -1,22 +1,7 @@
 #include <iostream>
-#include <string>
-#include <bitset>
 
-#include "attack_rays.cpp"
-#include "attacks.cpp"
-#include "board.cpp"
 #include "constants.cpp"
-#include "evaluation.cpp"
-#include "macros.cpp"
-#include "magic.cpp"
-#include "moves.cpp"
-#include "random.cpp"
-#include "stack.cpp"
-#include "time.cpp"
-#include "transposition.cpp"
-#include "types.cpp"
 #include "uci.cpp"
-#include "zobrist.cpp"
 
 
 /*

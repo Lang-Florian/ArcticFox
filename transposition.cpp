@@ -13,6 +13,13 @@
 #include "types.cpp"
 
 
+/*
+  
+  the transposition table
+
+*/
+
+
 namespace transposition {
   constexpr u64_t index_mask = (1ULL << TABLE_SIZE_LOG2) - 1;
 

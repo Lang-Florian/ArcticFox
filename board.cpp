@@ -18,6 +18,13 @@
 #include "zobrist.cpp"
 
 
+/*
+
+  the board representation
+
+*/
+
+
 struct undo_t {
   move_t move;
   castling_t castling;

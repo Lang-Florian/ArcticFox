@@ -7,22 +7,14 @@
 #define __BOARD__MODULE__
 
 
-#include <algorithm>
 #include <array>
-#include <iostream>
 #include <string>
-#include <type_traits>
 
-#include "attack_rays.cpp"
 #include "attacks.cpp"
 #include "constants.cpp"
-#include "evaluation.cpp"
-#include "macros.cpp"
+#include "types.cpp"
 #include "moves.cpp"
 #include "stack.cpp"
-#include "time.cpp"
-#include "transposition.cpp"
-#include "types.cpp"
 #include "zobrist.cpp"
 
 
@@ -32,12 +24,6 @@ struct undo_t {
   square_t enpassant;
   u16_t halfmove_clock;
   hash_t hash;
-};
-
-
-struct search_result_t {
-  pv_t pv;
-  score_t score;
 };
 
 
@@ -54,296 +40,16 @@ class Board {
     Stack<undo_t, MAX_GAME_LENGTH> history;
     std::string starting_fen;
 
-    std::array<bitboard_t, 2> attacks;
-    std::array<bitboard_t, 2> attacks_no_king;
-    std::array<bitboard_t, 2> bishop_pins;
-    std::array<bitboard_t, 2> rook_pins;
-    std::array<bitboard_t, 2> enpassant_pins;
-    std::array<square_t, 2> king_square;
-    std::array<bitboard_t, 2> king_bishop_ray;
-    std::array<bitboard_t, 2> king_rook_ray;
-    std::array<bitboard_t, 2> king_bishop_attack;
-    std::array<bitboard_t, 2> king_rook_attack;
-    std::array<bitboard_t, 2> bishop_discoverable;
-    std::array<bitboard_t, 2> rook_discoverable;
-    std::array<bitboard_t, 2> enpassant_discoverable;
-    std::array<bool, 2> is_castled;
-
     // initialize the board
     Board(std::string fen=fen::startpos) {
       this->set_fen(fen);
     };
 
-    template <color_t color>
-    score_t evaluate() {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr std::array<piece_t, 6> pieces = piece::all_pieces_by_color[color];
-      constexpr std::array<piece_t, 6> opponent_pieces = piece::all_pieces_by_color[opponent];
-      move_stack_t moves = this->generate<color, legal, move_stack_t>();
-      outcome_t outcome = this->outcome<color>(moves.size());
-      if (outcome & outcome::checkmate) {
-        return -eval::checkmate;
-      } else if (outcome & outcome::draw) {
-        return eval::draw;
-      };
-      move_stack_t moves_opponent = this->generate<opponent, legal, move_stack_t>();
-      int checks = moves.count([](move_t move) {return move::check(move);});
-      int checks_opponent = moves_opponent.count([](move_t move) {return move::check(move);});
-      int captures = moves.count([](move_t move) {return move::capture(move);});
-      int captures_opponent = moves_opponent.count([](move_t move) {return move::capture(move);});
-      score_t score = 10;
-      float endgame_factor = 1 - (float)(
-        (popcount(this->bitboards[piece::pawn])) +
-        (popcount(this->bitboards[piece::knight]) << 1) +
-        (popcount(this->bitboards[piece::bishop]) << 1) +
-        (popcount(this->bitboards[piece::rook]) << 2) +
-        (popcount(this->bitboards[piece::queen]) << 3)
-      ) / (float)78;
-      for (piece_t piece : pieces) {
-        bitboard_t piece_bitboard = this->bitboards[piece];
-        while (piece_bitboard) {
-          square_t square = pop_lsb(piece_bitboard);
-          score += eval::value_array[piece](square, endgame_factor);
-        };
-      };
-      for (piece_t piece : opponent_pieces) {
-        bitboard_t piece_bitboard = this->bitboards[piece];
-        while (piece_bitboard) {
-          square_t square = pop_lsb(piece_bitboard);
-          score -= eval::value_array[piece](square, endgame_factor);
-        };
-      };
-      score -= popcount(this->rook_pins[color]) << 4;
-      score -= popcount(this->bishop_pins[color]) << 4;
-      score += popcount(this->rook_pins[opponent]) << 4;
-      score += popcount(this->bishop_pins[opponent]) << 4;
-      score += popcount(this->attacks[color]) << 0;
-      score -= popcount(this->attacks[opponent]) << 0;
-      score += popcount(this->attacks[color] & attack<piece::king>(this->king_square[opponent])) << 3;
-      score += popcount(this->attacks[opponent] & attack<piece::king>(this->king_square[color])) << 3;
-      score += moves.size() >> 2;
-      score -= moves_opponent.size() >> 2;
-      score += checks << 3;
-      score -= checks_opponent << 3;
-      score += captures << 2;
-      score -= captures_opponent << 2;
-      return score;
-    };
-
-    score_t evaluate() {
-      if (this->turn == color::white) {
-        return this->evaluate<color::white>();
-      } else {
-        return this->evaluate<color::black>();
-      };
-    };
-
-    std::string san(move_t move) {
-      constexpr std::array<char, 8> files {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
-      constexpr std::array<char, 8> ranks {'1', '2', '3', '4', '5', '6', '7', '8'};
-      if (move::castling(move)) {
-        if (move::to(move) == square::g1 || move::to(move) == square::g8) {
-          return "O-O";
-        } else {
-          return "O-O-O";
-        };
-      };
-      bool is_checkmate = false;
-      this->make(move);
-      if (this->outcome() & outcome::checkmate) {
-        is_checkmate = true;
-      };
-      this->unmake();
-      std::string san = "";
-      if (piece::type(move::moved_piece(move)) == piece::pawn) {
-        if (move::capture(move)) {
-         san += files[move::from(move) & 0b111] + "x";
-        };
-        san += square::to_string(move::to(move));
-        if (move::promotion(move)) {
-          san += "=" + piece::san_string(move::target_piece(move));
-        };
-      } else {
-        san += piece::san_string(move::moved_piece(move));
-        bitboard_t possible_pieces = this->bitboards[move::moved_piece(move)] & attack_array[move::moved_piece(move)](move::to(move), this->bitboards[piece::none]) & ~bitboard(move::from(move));
-        if (possible_pieces) {
-          if ((possible_pieces & bitboard::files[move::from(move) & 0b111]) && (possible_pieces & bitboard::ranks[(move::from(move) >> 3) ^ 0b111])) {
-            san += files[move::from(move) & 0b111] + ranks[(move::from(move) >> 3) ^ 0b111];
-          } else if (possible_pieces & bitboard::files[move::from(move) & 0b111]) {
-            san += ranks[(move::from(move) >> 3) ^ 0b111];
-          } else {
-            san += files[move::from(move) & 0b111];
-          };
-        };
-        if (move::capture(move)) {
-          san += "x";
-        };
-        san += square::to_string(move::to(move));
-      };
-      if (is_checkmate) {
-        san += "#";
-      } else if (move::check(move)) {
-        san += "+";
-      };
-      return san;
-    };
-
-    std::string pgn() {
-      Board pgn_board = Board(this->starting_fen);
-      std::string pgn = "";
-      pgn += "[FEN \"" + pgn_board.starting_fen + "\"]\n";
-     for (int move_counter = 0; move_counter < this->history.size(); move_counter++) {
-        if (move_counter % 2 == 0) {
-          pgn += std::to_string((move_counter >> 1) + 1) + ". ";
-        };
-        undo_t undo = this->history[move_counter];
-        move_t move = undo.move;
-        pgn += pgn_board.san(move) + " ";
-        pgn_board.make(move);
-      };
-      if (pgn_board.outcome() & outcome::draw) {
-        pgn += "1/2-1/2 ";
-      };
-      pgn.pop_back();
-      return pgn;
-    };
-
-    template <color_t color>
-    score_t q_search(int depth, score_t alpha, score_t beta, u64_t& tthits, u64_t& nodes) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      if (depth == 0) {
-        nodes++;
-        return this->evaluate<color>();
-      };
-      score_t score = this->evaluate<color>();
-      if (score >= beta) {
-        return beta;
-      };
-      if (alpha < score) {
-        alpha = score;
-      };
-      move_stack_t moves = this->generate<color, check | capture, move_stack_t>();
-      // outcome_t outcome = this->outcome<color>(moves.size());
-      // if (outcome & outcome::checkmate) {
-      //   nodes++;
-      //   return -eval::checkmate;
-      // } else if (outcome & outcome::draw) {
-      //   nodes++;
-      //   return eval::draw;
-      // };
-      moves.sort(move::ordering);
-      for (move_t move : moves) {
-        this->make(move);
-        score = eval::add_depth(this->q_search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tthits, nodes));
-        this->unmake();
-        if (score >= beta) {
-          nodes++;
-          return beta;
-        };
-        if (score > alpha) {
-          alpha = score;
-        };
-      };
-      return alpha;
-    };
-
-    template <color_t color>
-    search_result_t search(int depth, score_t alpha, score_t beta, u64_t& tthits, u64_t& nodes, pv_t old_pv=pv_t {}) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      if (depth == 0) {
-        return search_result_t {pv_t {}, q_search<color>(MAX_Q_DEPTH, alpha, beta, tthits, nodes)};
-      };
-      if (this->position_existed<color>()) {
-        nodes++;
-        return search_result_t {pv_t {}, eval::draw};
-      };
-      pv_t pv {};
-      transposition::entry_t& entry = transposition::get(this->zobrist.hash);
-      if (entry.is_valid(this->zobrist.hash, depth)) {
-        tthits++;
-        u8_t bound = entry.get_bound();
-        if (bound == transposition::exact_bound) {
-          nodes++;
-          pv.push(entry.move);
-          return search_result_t {pv, entry.get_score()};
-        } else if (bound == transposition::upper_bound && beta > entry.get_score()) {
-          beta = entry.get_score();
-        } else if (bound == transposition::lower_bound && alpha < entry.get_score()) {
-          alpha = entry.get_score();
-        };
-        if (alpha >= beta) {
-          nodes++;
-          return search_result_t {pv, entry.get_score()};
-        };
-      };
-      move_stack_t moves = this->generate<color, legal, move_stack_t>();
-      outcome_t outcome = this->outcome<color>(moves.size());
-      if (outcome & outcome::checkmate) {
-        nodes++;
-        return search_result_t {pv_t {}, -eval::checkmate};
-      } else if (outcome & outcome::draw) {
-        nodes++;
-        return search_result_t {pv_t {}, eval::draw};
-      };
-      moves.sort(move::reverse_ordering);
-      if (old_pv.size() > 0) {
-        move_t move = old_pv.pop();
-        if (moves.contains(move)) {
-          moves.push(move);
-        } else {
-          pv.clear();
-        };
-      };
-      if (moves.contains(entry.move)) {
-        moves.push(entry.move);
-      };
-      moves.reverse();
-      u8_t bound = transposition::upper_bound;
-      for (move_t move : moves) {
-        this->make(move);
-        search_result_t search_result = this->search<opponent>(depth - 1, eval::remove_depth(beta), eval::remove_depth(alpha), tthits, nodes, old_pv);
-        this->unmake();
-        search_result.score = eval::add_depth(search_result.score);
-        if (search_result.score > alpha) {
-          pv = search_result.pv.copy();
-          pv.push(move);
-          if (search_result.score >= beta) {
-            entry.set(this->zobrist.hash, move, search_result.score, depth, transposition::lower_bound);
-            return search_result_t {pv, beta};
-          };
-          alpha = search_result.score;
-          bound = transposition::exact_bound;
-        };
-      };
-      entry.set(this->zobrist.hash, pv[0], alpha, depth, bound);
-      return search_result_t {pv, alpha};
-    };
-
-    search_result_t search(int depth) {
-      search_result_t search_result;
-      pv_t pv {};
-      for (int i = 1; i <= depth; i++) {
-        u64_t tthits = 0;
-        u64_t nodes = 0;
-        if (this->turn == color::white) search_result = this->search<color::white>(i, -eval::inf, eval::inf, tthits, nodes, pv);
-        else search_result = this->search<color::black>(i, -eval::inf, eval::inf, tthits, nodes, pv);
-        if (this->turn == color::black) search_result.score = -search_result.score;
-        pv = search_result.pv.copy();
-        std::cout << "Depth: " << i;
-        std::cout << "\tScore: " << (int)search_result.score << "\tPV: ";
-        search_result.pv.reverse();
-        for (move_t move : search_result.pv) {
-          std::cout << move::uci(move) << " ";
-        };
-        std::cout << std::endl << "Transposition hits: " << (int)tthits << " Nodes: " << (int)nodes << std::endl;
-      };
-      return search_result;
-    };
-
     // set the board to a given fen string
     void set_fen(std::string fen=fen::startpos) {
       this->starting_fen = fen;
-      // clear lists and stacks
+
+      // clear all
       this->bitboards.fill(bitboard::none);
       this->pieces.fill(piece::none);
       this->zobrist.clear();
@@ -396,33 +102,49 @@ class Board {
 
     // get the fen string for the board
     std::string fen() {
-      std::string string = "";
+      std::string fen = "";
       int index = 0;
       for (auto square : square::all_squares) {
         if (square % 8 == 0 && square != 0) {
           if (index != 0) {
-            string += std::to_string(index);
+            fen += std::to_string(index);
             index = 0;
           };
-          string += "/";
+          fen += "/";
         };
         if (this->pieces[square] == piece::none) {
           index++;
         } else {
           if (index != 0) {
-            string += std::to_string(index);
+            fen += std::to_string(index);
             index = 0;
           };
-          string += piece::to_string(this->pieces[square]);
+          fen += piece::to_string(this->pieces[square]);
         };
       };
-      if (index != 0) string += std::to_string(index);
-      string += " " + color::to_string(this->turn);
-      string += " " + castling::to_string(this->castling);
-      string += " " + square::to_string(this->enpassant);
-      string += " " + std::to_string(this->halfmove_clock);
-      string += " " + std::to_string(this->fullmove_clock);
-      return string;
+      if (index != 0) fen += std::to_string(index);
+      fen += " " + color::to_string(this->turn);
+      fen += " " + castling::to_string(this->castling);
+      fen += " " + square::to_string(this->enpassant);
+      fen += " " + std::to_string(this->halfmove_clock);
+      fen += " " + std::to_string(this->fullmove_clock);
+      return fen;
+    };
+
+    // convert a uci move to a move_t
+    move_t from_uci(std::string uci) {
+      square_t from = (uci[0] - 'a') + 8 * (7 - (uci[1] - '1'));
+      square_t to = (uci[2] - 'a') + 8 * (7 - (uci[3] - '1'));
+      piece_t moved_piece = this->pieces[from];
+      piece_t target_piece = moved_piece;
+      if (uci.length() == 5) {
+        target_piece = piece::to_color(piece::from_char(uci[4]), this->turn);
+      };
+      piece_t captured_piece = this->pieces[to];
+      bool double_pawn_push = (piece::type(moved_piece) == piece::pawn) && (((from - to) == 16) || ((from - to) == -16));
+      bool enpassant = (piece::type(moved_piece) == piece::pawn) && (to == this->enpassant);
+      bool castling = (piece::type(moved_piece) == piece::king) && (((from - to) == 2) || ((from - to) == -2));
+      return move::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling, target_piece != moved_piece, false);
     };
 
     // push a uci move to the stack
@@ -441,6 +163,14 @@ class Board {
       this->zobrist.update_piece(piece, square);
     };
 
+    void place_piece(piece_t piece, square_t square) {
+      if (piece::color(piece) == color::white) {
+        this->place_piece<color::white>(piece, square);
+      } else if (piece::color(piece) == color::black) {
+        this->place_piece<color::black>(piece, square);
+      };
+    };
+
     // remove a piece from a square
     template <color_t color>
     void remove_piece(square_t square) {
@@ -451,14 +181,6 @@ class Board {
       clear_bit(this->bitboards[piece::none], square);
       this->pieces[square] = piece::none;
       this->zobrist.update_piece(piece, square);
-    };
-
-    void place_piece(piece_t piece, square_t square) {
-      if (piece::color(piece) == color::white) {
-        this->place_piece<color::white>(piece, square);
-      } else if (piece::color(piece) == color::black) {
-        this->place_piece<color::black>(piece, square);
-      };
     };
 
     void remove_piece(square_t square) {
@@ -516,7 +238,6 @@ class Board {
       } else if (move::castling(move)) {
         this->remove_piece<color>(to + (to > from) * 3 - 2);
         this->place_piece<color>(rook, to - (to > from) * 2 + 1);
-        this->is_castled[color] = true;
       } else if (move::double_pawn_push(move)) {
         if constexpr (color == color::white) {
           this->enpassant = to + 8;
@@ -532,6 +253,14 @@ class Board {
       this->zobrist.update_castling(this->castling);
       this->zobrist.update_enpassant(this->enpassant);
       this->zobrist.update_turn();
+    };
+
+    void make(move_t move) {
+      if (this->turn == color::white) {
+        this->make<color::white>(move);
+      } else if (this->turn == color::black) {
+        this->make<color::black>(move);
+      };
     };
 
     // undo a move on the board
@@ -571,21 +300,12 @@ class Board {
       } else if (move::castling(move)) {
         this->remove_piece<color>(to - (to > from) * 2 + 1);
         this->place_piece<color>(rook, to + (to > from) * 3 - 2);
-        this->is_castled[color] = false;
       } else if (move::capture(move)) {
         this->place_piece<opponent>(move::captured_piece(move), to);
       };
 
       // restore hash
       this->zobrist.set(undo.hash);
-    };
-
-    void make(move_t move) {
-      if (this->turn == color::white) {
-        this->make<color::white>(move);
-      } else if (this->turn == color::black) {
-        this->make<color::black>(move);
-      };
     };
 
     void unmake() {
@@ -609,6 +329,7 @@ class Board {
       );
     };
 
+    // get all the attacks of a color on a square
     template <color_t color>
     bitboard_t attackers(square_t square) {
       constexpr color_t opponent = color::compiletime::opponent(color);
@@ -629,22 +350,7 @@ class Board {
       );
     };
 
-    // convert a uci move to a move_t
-    move_t from_uci(std::string uci) {
-      square_t from = (uci[0] - 'a') + 8 * (7 - (uci[1] - '1'));
-      square_t to = (uci[2] - 'a') + 8 * (7 - (uci[3] - '1'));
-      piece_t moved_piece = this->pieces[from];
-      piece_t target_piece = moved_piece;
-      if (uci.length() == 5) {
-        target_piece = piece::to_color(piece::from_char(uci[4]), this->turn);
-      };
-      piece_t captured_piece = this->pieces[to];
-      bool double_pawn_push = (piece::type(moved_piece) == piece::pawn) && (((from - to) == 16) || ((from - to) == -16));
-      bool enpassant = (piece::type(moved_piece) == piece::pawn) && (to == this->enpassant);
-      bool castling = (piece::type(moved_piece) == piece::king) && (((from - to) == 2) || ((from - to) == -2));
-      return move::move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling, target_piece != moved_piece, false);
-    };
-
+    
     // see if current position is check
     template <color_t color>
     bool is_check() {
@@ -663,1061 +369,10 @@ class Board {
       return false;
     };
 
-    template <color_t color>
-    void update_attacks() {
-      constexpr std::array<piece_t, 6> all_pieces = piece::all_pieces_by_color[color];
-      constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, color::compiletime::opponent(color));
-      this->attacks[color] = bitboard::none;
-      this->attacks_no_king[color] = bitboard::none;
-      for (piece_t piece : all_pieces) {
-        bitboard_t pieces = this->bitboards[piece];
-        while (pieces) {
-          square_t square = pop_lsb(pieces);
-          this->attacks[color] |= attack_array[piece](square, this->bitboards[piece::none]);
-          this->attacks_no_king[color] |= attack_array[piece](square, this->bitboards[piece::none] & ~this->bitboards[opponent_king]);
-        };
-      };
-    };
-
-    template <color_t color>
-    void update_pins() {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
-      constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
-      constexpr piece_t opponent_bishop = piece::compiletime::to_color(piece::bishop, opponent);
-      constexpr piece_t opponent_rook = piece::compiletime::to_color(piece::rook, opponent);
-      constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
-      square_t king_square = get_lsb(this->bitboards[king]);
-      bitboard_t king_bishop_ray = attack_ray::bishop[king_square];
-      bitboard_t king_rook_ray = attack_ray::rook[king_square];
-      bitboard_t occupancy = this->bitboards[piece::none];
-      bitboard_t king_bishop_attack = attack<piece::bishop>(king_square, occupancy);
-      bitboard_t king_rook_attack = attack<piece::rook>(king_square, occupancy);
-      // get all bishop pinned pieces
-      this->bishop_pins[color] = bitboard::none;
-      bitboard_t bishop_attackers = (this->bitboards[opponent_bishop] | this->bitboards[opponent_queen]) & king_bishop_ray;
-      while (bishop_attackers) {
-        square_t square = pop_lsb(bishop_attackers);
-        bishop_pins[color] |= attack<opponent_bishop>(square, occupancy) & king_bishop_attack;
-      };
-      // get all rook pinned pieces
-      this->rook_pins[color] = bitboard::none;
-      bitboard_t rook_attackers = (this->bitboards[opponent_rook] | this->bitboards[opponent_queen]) & king_rook_ray;
-      while (rook_attackers) {
-        square_t square = pop_lsb(rook_attackers);
-        this->rook_pins[color] |= attack<opponent_rook>(square, occupancy) & king_rook_attack;
-      };
-      // get all enpassant pinned pieces
-      this->enpassant_pins[color] = bitboard::full;
-      if (this->enpassant != square::none && color == this->turn) {
-        this->enpassant_pins[color] = bitboard::none;
-        bitboard_t enpassant_pawns = bitboard::none;
-        if constexpr (color == color::white) {
-          enpassant_pawns = bitboard(this->enpassant) << 8;
-        } else {
-          enpassant_pawns = bitboard(this->enpassant) >> 8;
-        };
-        bitboard_t enpassant_attackers = (this->bitboards[opponent_rook] | this->bitboards[opponent_queen]) & king_rook_ray;
-        while (enpassant_attackers) {
-          square_t square = pop_lsb(enpassant_attackers);
-          this->enpassant_pins[color] |= attack<opponent_rook>(square, occupancy & ~enpassant_pawns) & attack<opponent_rook>(king_square, occupancy & ~enpassant_pawns);
-        };
-      };
-    };
-
-    template <color_t color>
-    void update_king() {
-      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
-      bitboard_t occupancy = this->bitboards[piece::none];
-      this->king_square[color] = get_lsb(this->bitboards[king]);
-      this->king_bishop_ray[color] = attack_ray::bishop[this->king_square[color]];
-      this->king_rook_ray[color] = attack_ray::rook[this->king_square[color]];
-      this->king_bishop_attack[color] = attack<piece::bishop>(this->king_square[color], occupancy);
-      this->king_rook_attack[color] = attack<piece::rook>(this->king_square[color], occupancy);
-    };
-
-    template <color_t color>
-    void update_discoverable() {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
-      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
-      constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-      bitboard_t occupancy = this->bitboards[piece::none];
-      this->bishop_discoverable[color] = bitboard::none;
-      bitboard_t bishop_attackers = (this->bitboards[bishop] | this->bitboards[queen]) & this->king_bishop_ray[opponent];
-      while (bishop_attackers) {
-        square_t square = pop_lsb(bishop_attackers);
-        bishop_discoverable[color] |= attack<bishop>(square, occupancy) & this->king_bishop_attack[opponent];
-      };
-      this->rook_discoverable[color] = bitboard::none;
-      bitboard_t rook_attackers = (this->bitboards[rook] | this->bitboards[queen]) & this->king_rook_ray[opponent];
-      while (rook_attackers) {
-        square_t square = pop_lsb(rook_attackers);
-        this->rook_discoverable[color] |= attack<rook>(square, occupancy) & this->king_rook_attack[opponent];
-      };
-      this->enpassant_discoverable[color] = bitboard::full;
-      if (this->enpassant != square::none && color == this->turn) {
-        this->enpassant_discoverable[color] = bitboard::none;
-        bitboard_t enpassant_pawns = bitboard::none;
-        if constexpr (color == color::white) {
-          enpassant_pawns = bitboard(this->enpassant) << 8;
-        } else {
-          enpassant_pawns = bitboard(this->enpassant) >> 8;
-        };
-        bitboard_t enpassant_attackers = (this->bitboards[rook] | this->bitboards[queen]) & this->king_rook_ray[opponent];
-        while (enpassant_attackers) {
-          square_t square = pop_lsb(enpassant_attackers);
-          this->enpassant_discoverable[color] |= attack<rook>(square, occupancy & ~enpassant_pawns) & attack<rook>(this->king_square[opponent], occupancy & ~enpassant_pawns);
-        };
-      };
-    };
-
-    // generate all moves for a given generation type and color
-    template <color_t color, gen_t gen, typename T>
-    T generate() {
-      // important constants and variables
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t opponent_bishop = piece::compiletime::to_color(piece::bishop, opponent);
-      constexpr piece_t opponent_rook = piece::compiletime::to_color(piece::rook, opponent);
-      constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
-
-      T moves;
-      if constexpr (std::is_same_v<T, move_stack_t>) {
-        moves.clear();
-      } else {
-        moves = 0;
-      };
-
-      this->update_attacks<opponent>();
-      this->update_pins<color>();
-      this->update_pins<opponent>();
-      this->update_king<color>();
-      this->update_king<opponent>();
-      this->update_discoverable<color>();
-
-      // add all possible moves to the move stack
-      bitboard_t evasion_target = bitboard::none;
-      bitboard_t checkers = this->attackers<opponent>(this->king_square[color]);
-      if (popcount(checkers) > 1) {
-        this->add_king_moves<color, gen>(moves);
-        return moves;
-      } else if (checkers) {
-        square_t checker_square = get_lsb(checkers);
-        switch (this->pieces[checker_square]) {
-          case opponent_bishop:
-            evasion_target = bitboard(checker_square) | (this->king_bishop_attack[color] & attack<opponent_bishop>(checker_square, this->bitboards[color::none]));
-            break;
-          case opponent_rook:
-            evasion_target = bitboard(checker_square) | (this->king_rook_attack[color] & attack<opponent_rook>(checker_square, this->bitboards[color::none]));
-            break;
-          case opponent_queen:
-            if (this->king_bishop_attack[color] & this->bitboards[opponent_queen]) {
-              evasion_target = bitboard(checker_square) | (this->king_bishop_attack[color] & attack<opponent_bishop>(checker_square, this->bitboards[color::none]));
-            } else if (this->king_rook_attack[color] & this->bitboards[opponent_queen]) {
-              evasion_target = bitboard(checker_square) | (this->king_rook_attack[color] & attack<opponent_rook>(checker_square, this->bitboards[color::none]));
-            };
-            break;
-          default:
-            evasion_target = bitboard(checker_square);
-            break;
-        };
-      } else {
-        evasion_target = bitboard::full;
-        this->add_castling_moves<color, gen>(moves);
-      };
-      this->add_king_moves<color, gen>(moves);
-      this->add_enpassant_moves<color, gen>(moves, evasion_target);
-      this->add_pawn_push_moves<color, gen>(moves, evasion_target);
-      this->add_pawn_capture_moves<color, gen>(moves, evasion_target);
-      this->add_knight_moves<color, gen>(moves, evasion_target);
-      this->add_bishop_moves<color, gen>(moves, evasion_target);
-      this->add_rook_moves<color, gen>(moves, evasion_target);
-      this->add_queen_moves<color, gen>(moves, evasion_target);
-      return moves;
-    };
-
-    // get all the legal moves for the current turn
-    move_stack_t legal_moves() {
-      if (this->turn == color::white) {
-        return this->generate<color::white, legal, move_stack_t>();
-      } else {
-        return this->generate<color::black, legal, move_stack_t>();
-      };
-    };
-
-    template <color_t color, gen_t gen>
-    u64_t perft(int depth) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      if (depth == 0) {
-        return 1;
-      } else if (depth == 1) {
-        u64_t count = this->generate<color, gen, move_stack_t>().size();
-        return count;
-      } else if (depth == 2) {
-        u64_t count = 0;
-        auto moves = this->generate<color, legal, move_stack_t>();
-        for (auto move : moves) {
-          this->make<color>(move);
-          count += this->generate<opponent, gen, move_stack_t>().size();
-          this->unmake<color>();
-        };
-        return count;
-      };
-      u64_t count = 0;
-      auto moves = this->generate<color, legal, move_stack_t>();
-      for (auto move : moves) {
-        this->make<color>(move);
-        count += this->perft<opponent, gen>(depth - 1);
-        this->unmake<color>();
-      };
-      return count;
-    };
-
-    template <gen_t gen>
-    u64_t perft(int depth) {
-      if (this->turn == color::white)
-        return this->perft<color::white, gen>(depth);
-      else
-        return this->perft<color::black, gen>(depth);
-    };
-
-    // get the outcome of the game
-    outcome_t outcome() {
-      bool has_legal_moves = false;
-      if (this->turn == color::white) {
-        has_legal_moves = this->generate<color::white, legal, u64_t>();
-        return this->outcome<color::white>(has_legal_moves);
-      } else {
-        has_legal_moves = this->generate<color::black, legal, u64_t>();
-        return this->outcome<color::black>(has_legal_moves);
-      };
-    };
-
-    // get the outcome of the game given you know if there are any legal moves
-    template <color_t color>
-    outcome_t outcome(bool has_legal_moves) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      if (!has_legal_moves) {
-        if (this->is_check()) {
-          return outcome::checkmate_for(opponent);
-        } else {
-          return outcome::stalemate;
-        };
-      } else if (this->halfmove_clock >= 100) {
-        return outcome::fifty_move_rule;
-      } else if (this->history.count([this](undo_t undo) {return undo.hash == this->zobrist.hash;}) >= 2) {
-        return outcome::threefold_repetition;
-      };
-      return outcome::none;
-    };
-
+    // check if a position already exists in the history
     template <color_t color>
     bool position_existed() {
-      return this->history.count([this](undo_t undo) {return undo.hash == this->zobrist.hash;}) > 0;
-    };
-
-    // add legal castling moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_castling_moves(T& moves) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
-      bitboard_t occupancy = this->bitboards[color::none];
-      bitboard_t opponent_king_rook_attack_future = attack<piece::rook>(this->king_square[opponent], occupancy & ~this->bitboards[king]);
-      if constexpr (color == color::white) {
-        bool castle_king = (
-          !(this->attacks[color::black] & castling::white_king_attack_mask) &&
-          !(occupancy & castling::white_king_piece_mask) &&
-          (this->castling & castling::white_king) &&
-          (((gen & check) && (bitboard::f1 & opponent_king_rook_attack_future)) || ((gen & quiet) && !(bitboard::f1 & opponent_king_rook_attack_future)))
-        );
-        bool castle_queen = (
-          !(this->attacks[color::black] & castling::white_queen_attack_mask) &&
-          !(occupancy & castling::white_queen_piece_mask) &&
-          (this->castling & castling::white_queen) &&
-          (((gen & check) && (bitboard::d1 & opponent_king_rook_attack_future)) || ((gen & quiet) && !(bitboard::d1 & opponent_king_rook_attack_future)))
-        );
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          moves.push(move::move(square::e1, square::g1, piece::white_king, piece::white_king, piece::none, false, false, true, false, bitboard::f1 & opponent_king_rook_attack_future));
-          moves.pop(!castle_king);
-          moves.push(move::move(square::e1, square::c1, piece::white_king, piece::white_king, piece::none, false, false, true, false, bitboard::d1 & opponent_king_rook_attack_future));
-          moves.pop(!castle_queen);
-        } else {
-          moves += castle_king + castle_queen;
-        };
-      } else if constexpr (color == color::black) {
-        bool castle_king = (
-          !(this->attacks[color::white] & castling::black_king_attack_mask) &&
-          !(occupancy & castling::black_king_piece_mask) &&
-          (this->castling & castling::black_king) &&
-          (((gen & check) && (bitboard::f8 & opponent_king_rook_attack_future)) || ((gen & quiet) && !(bitboard::f8 & opponent_king_rook_attack_future)))
-        );
-        bool castle_queen = (
-          !(this->attacks[color::white] & castling::black_queen_attack_mask) &&
-          !(occupancy & castling::black_queen_piece_mask) &&
-          (this->castling & castling::black_queen) &&
-          (((gen & check) && (bitboard::d8 & opponent_king_rook_attack_future)) || ((gen & quiet) && !(bitboard::d8 & opponent_king_rook_attack_future)))
-        );
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          moves.push(move::move(square::e8, square::g8, piece::black_king, piece::black_king, piece::none, false, false, true, false, bitboard::f8 & opponent_king_rook_attack_future));
-          moves.pop(!castle_king);
-          moves.push(move::move(square::e8, square::c8, piece::black_king, piece::black_king, piece::none, false, false, true, false, bitboard::d8 & opponent_king_rook_attack_future));
-          moves.pop(!castle_queen);
-        } else {
-          moves += castle_king + castle_queen;
-        };
-      };
-    };
-
-    // add legal king moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_king_moves(T& moves) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
-      bitboard_t occupancy_color = this->bitboards[color];
-      bitboard_t checking_squares = bitboard::none;
-      if (this->bitboards[king] & this->bishop_discoverable[color]) {
-        checking_squares = ~this->king_bishop_ray[opponent];
-      } else if (this->bitboards[king] & this->rook_discoverable[color]) {
-        checking_squares = ~this->king_rook_ray[opponent];
-      };
-      bitboard_t target;
-      if constexpr (gen & quiet) {
-        target |= ~(checking_squares | this->bitboards[opponent]);
-      };
-      if constexpr (gen & check) {
-        target |= checking_squares;
-      };
-      if constexpr (gen & capture) {
-        target |= this->bitboards[opponent];
-      };
-      bitboard_t possible_to = attack<king>(this->king_square[color]) & ~occupancy_color & ~this->attacks_no_king[opponent] & target;
-      if constexpr (std::is_same_v<T, move_stack_t>) {
-        while (possible_to) {
-          square_t to = pop_lsb(possible_to);
-          moves.push(move::move(this->king_square[color], to, king, king, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-        };
-      } else {
-        moves += popcount(possible_to);
-      };      
-    };
-
-    // add legal enpassant moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_enpassant_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
-      constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
-      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
-      constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
-      constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, opponent);
-      constexpr piece_t opponent_rook = piece::compiletime::to_color(piece::rook, opponent);
-      constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
-      constexpr int enpassant_offset = (color == color::white ? 8 : -8);
-      square_t checker_square = get_lsb(this->attackers<opponent>(this->king_square[color]));
-      bool is_always_check = (this->bishop_pins[opponent] & bitboard(this->enpassant + enpassant_offset)) || (this->bitboards[opponent_king] & attack<pawn>(this->enpassant));
-      if (this->enpassant == square::none) return;
-      bitboard_t bishop_pinned_pawns = (
-        this->bitboards[pawn] &
-        attack<opponent_pawn>(this->enpassant) &
-        ~this->enpassant_pins[color] &
-        this->bishop_pins[color] &
-        ~this->rook_pins[color]
-      );
-      while (bishop_pinned_pawns) {
-        square_t from = pop_lsb(bishop_pinned_pawns);
-        bool is_check = (
-          is_always_check ||
-          (this->rook_discoverable[color] & bitboard(from)) ||
-          ((this->bishop_discoverable[color] & bitboard(from)) && !(this->king_bishop_ray[opponent] & bitboard(this->enpassant))) ||
-          (attack<rook>(this->king_square[opponent], (this->bitboards[piece::none] & ~bitboard(from) & ~bitboard(this->enpassant + enpassant_offset)) | bitboard(this->enpassant)) & (this->bitboards[rook] | this->bitboards[queen]))
-        );
-        bool do_enpassant = (
-          (this->king_bishop_ray[color] & bitboard(this->enpassant)) &&
-          (
-            (evasion_target & bitboard(this->enpassant)) ||
-            (this->enpassant + enpassant_offset == checker_square)
-          ) && (
-            (gen & capture) ||
-            ((gen & check) && is_check)
-          )
-        );
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          moves.push(move::move(from, this->enpassant, pawn, pawn, opponent_pawn, false, true, false, false, is_check));
-          moves.pop(!do_enpassant);
-        } else {
-          moves += do_enpassant;
-        };
-      };
-      bitboard_t free_pawns = (
-        this->bitboards[pawn] &
-        attack<opponent_pawn>(this->enpassant) &
-        ~this->enpassant_pins[color] &
-        ~this->bishop_pins[color] &
-        ~this->rook_pins[color]
-      );
-      while (free_pawns) {
-        square_t from = pop_lsb(free_pawns);
-        bool is_check = (
-          is_always_check ||
-          (this->rook_discoverable[color] & bitboard(from)) ||
-          ((this->bishop_discoverable[color] & bitboard(from)) && !(this->king_bishop_ray[opponent] & bitboard(this->enpassant))) ||
-          (attack<rook>(this->king_square[opponent], (this->bitboards[piece::none] & ~bitboard(from) & ~bitboard(this->enpassant + enpassant_offset)) | bitboard(this->enpassant)) & (this->bitboards[rook] | this->bitboards[queen]))
-        );
-        bool do_enpassant = (
-          (
-            (evasion_target & bitboard(this->enpassant)) ||
-            (this->enpassant + enpassant_offset == checker_square)
-          ) && (
-            (gen & capture) ||
-            ((gen & check) && is_check)
-          )
-        );
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          moves.push(move::move(from, this->enpassant, pawn, pawn, opponent_pawn, false, true, false, false, is_check));
-          moves.pop(!do_enpassant);
-        } else {
-          moves += do_enpassant;
-        };
-      };
-    };
-
-    // add legal pawn push moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_pawn_push_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
-      constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
-      constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
-      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
-      constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-      constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
-      constexpr bitboard_t promotion_rank = (color == color::white) ? bitboard::rank_8 : bitboard::rank_1;
-      constexpr int push_offset = (color == color::white ? -8 : 8);
-      constexpr int doublepush_offset = 2 * push_offset;
-      bitboard_t occupancy = this->bitboards[color::none];
-      bitboard_t free_pawns = this->bitboards[pawn] & ~this->bishop_pins[color] & ~this->rook_pins[color];
-      bitboard_t rook_pinned_pawns = this->bitboards[pawn] & ~this->bishop_pins[color] & this->rook_pins[color];
-      bitboard_t pawn_checking_squares = attack<opponent_pawn>(this->king_square[opponent]);
-      bitboard_t knight_checking_squares = attack<knight>(this->king_square[opponent]);
-      bitboard_t bishop_checking_squares = this->king_bishop_attack[opponent];
-      bitboard_t rook_checking_squares = this->king_rook_attack[opponent];
-      bitboard_t non_discoverable_target = bitboard::none;
-      bitboard_t non_discoverable_knight_promoting_target = bitboard::none;
-      bitboard_t non_discoverable_bishop_promoting_target = bitboard::none;
-      bitboard_t non_discoverable_rook_promoting_target = bitboard::none;
-      bitboard_t non_discoverable_queen_promoting_target = bitboard::none;
-      bitboard_t discoverable_target = bitboard::none;
-      if constexpr (gen & quiet) {
-        non_discoverable_target |= ~pawn_checking_squares;
-        non_discoverable_knight_promoting_target |= ~(knight_checking_squares & promotion_rank);
-        non_discoverable_bishop_promoting_target |= ~(bishop_checking_squares & promotion_rank);
-        non_discoverable_rook_promoting_target |= ~(rook_checking_squares & promotion_rank);
-        non_discoverable_queen_promoting_target |= ~((bishop_checking_squares | rook_checking_squares) & promotion_rank);
-      };
-      if constexpr (gen & check) {
-        non_discoverable_target |= pawn_checking_squares;
-        non_discoverable_knight_promoting_target |= knight_checking_squares & promotion_rank;
-        non_discoverable_bishop_promoting_target |= bishop_checking_squares & promotion_rank;
-        non_discoverable_rook_promoting_target |= rook_checking_squares & promotion_rank;
-        non_discoverable_queen_promoting_target |= (bishop_checking_squares | rook_checking_squares) & promotion_rank;
-        discoverable_target |= bitboard::full;
-      };
-      non_discoverable_target &= evasion_target;
-      non_discoverable_knight_promoting_target &= evasion_target;
-      non_discoverable_bishop_promoting_target &= evasion_target;
-      non_discoverable_rook_promoting_target &= evasion_target;
-      non_discoverable_queen_promoting_target &= evasion_target;
-      discoverable_target &= evasion_target;
-      bitboard_t pushable_pawns;
-      bitboard_t doublepushable_pawns;
-      bitboard_t promoting_pawns;
-      if constexpr (color == color::white) {
-        pushable_pawns = (
-          (free_pawns & ~(occupancy << 8) & (evasion_target << 8) & ~bitboard::rank_7) |
-          (rook_pinned_pawns & ~(occupancy << 8) & (evasion_target << 8) & (this->king_rook_ray[color] << 8))
-        );
-        doublepushable_pawns = (
-          (free_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (evasion_target << 16) & bitboard::rank_2) |
-          (rook_pinned_pawns & ~(occupancy << 8) & ~(occupancy << 16) & (evasion_target << 16) & bitboard::rank_2 & (this->king_rook_ray[color] << 16))
-        );
-        promoting_pawns = free_pawns & ~(occupancy << 8) & (evasion_target << 8) & bitboard::rank_7;
-      } else {
-        pushable_pawns = (
-          (free_pawns & ~(occupancy >> 8) & (evasion_target >> 8) & ~bitboard::rank_2) |
-          (rook_pinned_pawns & ~(occupancy >> 8) & (evasion_target >> 8) & (this->king_rook_ray[color] >> 8))
-        );
-        doublepushable_pawns = (
-          (free_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (evasion_target >> 16) & bitboard::rank_7) |
-          (rook_pinned_pawns & ~(occupancy >> 8) & ~(occupancy >> 16) & (evasion_target >> 16) & bitboard::rank_7 & (this->king_rook_ray[color] >> 16))
-        );
-        promoting_pawns = free_pawns & ~(occupancy >> 8) & (evasion_target >> 8) & bitboard::rank_2;
-      };
-      bitboard_t discoverable = this->bishop_discoverable[color] | (this->rook_discoverable[color] & bitboard::ranks[(this->king_square[opponent] >> 3) ^ 0b111]);
-      bitboard_t discoverable_pushable_pawns = pushable_pawns & discoverable;
-      bitboard_t discoverable_doublepushable_pawns = doublepushable_pawns & discoverable;
-      bitboard_t discoverable_promoting_pawns = promoting_pawns & discoverable;
-      bitboard_t non_discoverable_pushable_pawns = pushable_pawns & ~discoverable;
-      bitboard_t non_discoverable_doublepushable_pawns = doublepushable_pawns & ~discoverable;
-      bitboard_t non_discoverable_promoting_pawns = promoting_pawns & ~discoverable;
-      bitboard_t knight_promoting_pawns;
-      bitboard_t bishop_promoting_pawns;
-      bitboard_t rook_promoting_pawns;
-      bitboard_t queen_promoting_pawns;
-      if constexpr (color == color::white) {
-        pushable_pawns = (
-          (discoverable_pushable_pawns & (discoverable_target << 8)) |
-          (non_discoverable_pushable_pawns & (non_discoverable_target << 8))
-        );
-        doublepushable_pawns = (
-          (discoverable_doublepushable_pawns & (discoverable_target << 16)) |
-          (non_discoverable_doublepushable_pawns & (non_discoverable_target << 16))
-        );
-        knight_promoting_pawns = (
-          (discoverable_promoting_pawns & (discoverable_target << 8)) |
-          (non_discoverable_promoting_pawns & (non_discoverable_knight_promoting_target << 8))
-        );
-        bishop_promoting_pawns = (
-          (discoverable_promoting_pawns & (discoverable_target << 8)) |
-          (non_discoverable_promoting_pawns & (non_discoverable_bishop_promoting_target << 8))
-        );
-        rook_promoting_pawns = (
-          (discoverable_promoting_pawns & (discoverable_target << 8)) |
-          (non_discoverable_promoting_pawns & (non_discoverable_rook_promoting_target << 8))
-        );
-        queen_promoting_pawns = (
-          (discoverable_promoting_pawns & (discoverable_target << 8)) |
-          (non_discoverable_promoting_pawns & (non_discoverable_queen_promoting_target << 8))
-        );
-      } else {
-        pushable_pawns = (
-          (discoverable_pushable_pawns & (discoverable_target >> 8)) |
-          (non_discoverable_pushable_pawns & (non_discoverable_target >> 8))
-        );
-        doublepushable_pawns = (
-          (discoverable_doublepushable_pawns & (discoverable_target >> 16)) |
-          (non_discoverable_doublepushable_pawns & (non_discoverable_target >> 16))
-        );
-        knight_promoting_pawns = (
-          (discoverable_promoting_pawns & (discoverable_target >> 8)) |
-          (non_discoverable_promoting_pawns & (non_discoverable_knight_promoting_target >> 8))
-        );
-        bishop_promoting_pawns = (
-          (discoverable_promoting_pawns & (discoverable_target >> 8)) |
-          (non_discoverable_promoting_pawns & (non_discoverable_bishop_promoting_target >> 8))
-        );
-        rook_promoting_pawns = (
-          (discoverable_promoting_pawns & (discoverable_target >> 8)) |
-          (non_discoverable_promoting_pawns & (non_discoverable_rook_promoting_target >> 8))
-        );
-        queen_promoting_pawns = (
-          (discoverable_promoting_pawns & (discoverable_target >> 8)) |
-          (non_discoverable_promoting_pawns & (non_discoverable_queen_promoting_target >> 8))
-        );
-      };
-      if constexpr (std::is_same_v<T, move_stack_t>) {
-        while (pushable_pawns) {
-          square_t from = pop_lsb(pushable_pawns);
-          square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, pawn, piece::none, false, false, false, false, (bitboard(to) & pawn_checking_squares) || (bitboard(from) & discoverable)));
-        };
-        while (doublepushable_pawns) {
-          square_t from = pop_lsb(doublepushable_pawns);
-          square_t to = from + doublepush_offset;
-          moves.push(move::move(from, to, pawn, pawn, piece::none, true, false, false, false, (bitboard(to) & pawn_checking_squares) || (bitboard(from) & discoverable)));
-        };
-        while (knight_promoting_pawns) {
-          square_t from = pop_lsb(knight_promoting_pawns);
-          square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, knight, piece::none, false, false, false, true, (bitboard(to) & knight_checking_squares) || (bitboard(from) & discoverable)));
-        };
-        while (bishop_promoting_pawns) {
-          square_t from = pop_lsb(bishop_promoting_pawns);
-          square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, bishop, piece::none, false, false, false, true, (bitboard(to) & bishop_checking_squares) || (bitboard(from) & discoverable)));
-        };
-        while (rook_promoting_pawns) {
-          square_t from = pop_lsb(rook_promoting_pawns);
-          square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, rook, piece::none, false, false, false, true, (bitboard(to) & rook_checking_squares) || (bitboard(from) & discoverable)));
-        };
-        while (queen_promoting_pawns) {
-          square_t from = pop_lsb(queen_promoting_pawns);
-          square_t to = from + push_offset;
-          moves.push(move::move(from, to, pawn, queen, piece::none, false, false, false, true, (bitboard(to) & (bishop_checking_squares | rook_checking_squares)) || (bitboard(from) & discoverable)));
-        };
-      } else {
-        moves += popcount(pushable_pawns);
-        moves += popcount(doublepushable_pawns);
-        moves += popcount(knight_promoting_pawns);
-        moves += popcount(bishop_promoting_pawns);
-        moves += popcount(rook_promoting_pawns);
-        moves += popcount(queen_promoting_pawns);
-      };
-    };
-
-    // add legal pawn capture moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_pawn_capture_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
-      constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
-      constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
-      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
-      constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-      constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
-      constexpr bitboard_t pre_promotion_rank = (color == color::white) ? bitboard::rank_7 : bitboard::rank_2;
-      constexpr bitboard_t promotion_rank = (color == color::white) ? bitboard::rank_8 : bitboard::rank_1;
-      bitboard_t occupancy_opponent = this->bitboards[opponent];
-      bitboard_t free_pawns = this->bitboards[pawn] & ~this->bishop_pins[color] & ~this->rook_pins[color];
-      bitboard_t bishop_pinned_pawns = this->bitboards[pawn] & this->bishop_pins[color] & ~this->rook_pins[color];
-      bitboard_t pawn_checking_squares = attack<opponent_pawn>(this->king_square[opponent]);
-      bitboard_t knight_checking_squares = attack<knight>(this->king_square[opponent]);
-      bitboard_t bishop_checking_squares = attack<bishop>(this->king_square[opponent], this->bitboards[piece::none]);
-      bitboard_t bishop_checking_squares_no_pawns = attack<bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~this->bitboards[pawn]);
-      bitboard_t rook_checking_squares = attack<rook>(this->king_square[opponent], this->bitboards[piece::none]);
-      bitboard_t queen_checking_squares = (bishop_checking_squares | rook_checking_squares);
-      bitboard_t queen_checking_squares_no_pawns = (bishop_checking_squares_no_pawns | rook_checking_squares);
-      bitboard_t non_discoverable_target = bitboard::none;
-      bitboard_t non_discoverable_knight_promoting_target = bitboard::none;
-      bitboard_t non_discoverable_bishop_promoting_target = bitboard::none;
-      bitboard_t non_discoverable_rook_promoting_target = bitboard::none;
-      bitboard_t non_discoverable_queen_promoting_target = bitboard::none;
-      bitboard_t discoverable_target = bitboard::none;
-      if constexpr (gen & check) {
-        non_discoverable_target |= pawn_checking_squares;
-        non_discoverable_knight_promoting_target |= knight_checking_squares & promotion_rank;
-        non_discoverable_bishop_promoting_target |= bishop_checking_squares_no_pawns & promotion_rank;
-        non_discoverable_rook_promoting_target |= rook_checking_squares & promotion_rank;
-        non_discoverable_queen_promoting_target |= queen_checking_squares_no_pawns & promotion_rank;
-        discoverable_target |= bitboard::full;
-      };
-      if constexpr (gen & capture) {
-        non_discoverable_target |= bitboard::full;
-        non_discoverable_knight_promoting_target |= bitboard::full;
-        non_discoverable_bishop_promoting_target |= bitboard::full;
-        non_discoverable_rook_promoting_target |= bitboard::full;
-        non_discoverable_queen_promoting_target |= bitboard::full;
-        discoverable_target |= bitboard::full;
-      };
-      non_discoverable_target &= evasion_target;
-      non_discoverable_knight_promoting_target &= evasion_target;
-      non_discoverable_bishop_promoting_target &= evasion_target;
-      non_discoverable_rook_promoting_target &= evasion_target;
-      non_discoverable_queen_promoting_target &= evasion_target;
-      discoverable_target &= evasion_target;
-      bitboard_t discoverable_promoting_free_pawns = free_pawns & pre_promotion_rank & (this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      bitboard_t discoverable_not_promoting_free_pawns = free_pawns & ~pre_promotion_rank & (this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      bitboard_t discoverable_promoting_bishop_pinned_pawns = bishop_pinned_pawns & pre_promotion_rank & (this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      bitboard_t discoverable_not_promoting_bishop_pinned_pawns = bishop_pinned_pawns & ~pre_promotion_rank & (this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      while (discoverable_promoting_free_pawns) {
-        square_t from = pop_lsb(discoverable_promoting_free_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, true));
-            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, true));
-            moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, true));
-            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, true));
-          };
-        } else {
-          moves += popcount(possible_to) << 2;
-        };
-      };
-      while (discoverable_not_promoting_free_pawns) {
-        square_t from = pop_lsb(discoverable_not_promoting_free_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, true));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      while (discoverable_promoting_bishop_pinned_pawns) {
-        square_t from = pop_lsb(discoverable_promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, true));
-            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, true));
-            moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, true));
-            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, true));
-          };
-        } else {
-          moves += popcount(possible_to) << 2;
-        };
-      };
-      while (discoverable_not_promoting_bishop_pinned_pawns) {
-        square_t from = pop_lsb(discoverable_not_promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, true));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t non_discoverable_promoting_free_pawns = free_pawns & pre_promotion_rank & ~(this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      bitboard_t non_discoverable_not_promoting_free_pawns = free_pawns & ~pre_promotion_rank & ~(this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      bitboard_t non_discoverable_promoting_bishop_pinned_pawns = bishop_pinned_pawns & pre_promotion_rank & ~(this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      bitboard_t non_discoverable_not_promoting_bishop_pinned_pawns = bishop_pinned_pawns & ~pre_promotion_rank & ~(this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      while (non_discoverable_promoting_free_pawns) {
-        square_t from = pop_lsb(non_discoverable_promoting_free_pawns);
-        bitboard_t possible_to_knight = attack<pawn>(from) & occupancy_opponent & non_discoverable_knight_promoting_target;
-        bitboard_t possible_to_bishop = attack<pawn>(from) & occupancy_opponent & non_discoverable_bishop_promoting_target;
-        bitboard_t possible_to_rook = attack<pawn>(from) & occupancy_opponent & non_discoverable_rook_promoting_target;
-        bitboard_t possible_to_queen = attack<pawn>(from) & occupancy_opponent & non_discoverable_queen_promoting_target;
-        if constexpr ((gen & check) && !(gen & capture)) {
-          possible_to_bishop &= attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
-          possible_to_queen &= attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
-        };
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to_knight) {
-            square_t to = pop_lsb(possible_to_knight);
-            moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, bitboard(to) & knight_checking_squares));
-          };
-          while (possible_to_bishop) {
-            square_t to = pop_lsb(possible_to_bishop);
-            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, bitboard(to) & attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from))));
-          };
-          while (possible_to_rook) {
-            square_t to = pop_lsb(possible_to_rook);
-            moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, bitboard(to) & rook_checking_squares));
-          };
-          while (possible_to_queen) {
-            square_t to = pop_lsb(possible_to_queen);
-            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, bitboard(to) & attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from))));
-          };
-        } else {
-          moves += popcount(possible_to_knight) + popcount(possible_to_bishop) + popcount(possible_to_rook) + popcount(possible_to_queen);
-        };
-      };
-      while (non_discoverable_not_promoting_free_pawns) {
-        square_t from = pop_lsb(non_discoverable_not_promoting_free_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & non_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, bitboard(to) & pawn_checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      while (non_discoverable_promoting_bishop_pinned_pawns) {
-        square_t from = pop_lsb(non_discoverable_promoting_bishop_pinned_pawns);
-        bitboard_t possible_to_knight = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_knight_promoting_target;
-        bitboard_t possible_to_bishop = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_bishop_promoting_target;
-        bitboard_t possible_to_rook = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_rook_promoting_target;
-        bitboard_t possible_to_queen = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_queen_promoting_target;
-        if constexpr ((gen & check) && !(gen & capture)) {
-          possible_to_bishop &= attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
-          possible_to_queen &= attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from));
-        };
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to_knight) {
-            square_t to = pop_lsb(possible_to_knight);
-            moves.push(move::move(from, to, pawn, knight, this->pieces[to], false, false, false, true, bitboard(to) & knight_checking_squares));
-          };
-          while (possible_to_bishop) {
-            square_t to = pop_lsb(possible_to_bishop);
-            moves.push(move::move(from, to, pawn, bishop, this->pieces[to], false, false, false, true, bitboard(to) & attack<piece::bishop>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from))));
-          };
-          while (possible_to_rook) {
-            square_t to = pop_lsb(possible_to_rook);
-            moves.push(move::move(from, to, pawn, rook, this->pieces[to], false, false, false, true, bitboard(to) & rook_checking_squares));
-          };
-          while (possible_to_queen) {
-            square_t to = pop_lsb(possible_to_queen);
-            moves.push(move::move(from, to, pawn, queen, this->pieces[to], false, false, false, true, bitboard(to) & attack<piece::queen>(this->king_square[opponent], this->bitboards[piece::none] & ~bitboard(from))));
-          };
-        } else {
-          moves += popcount(possible_to_knight) + popcount(possible_to_bishop) + popcount(possible_to_rook) + popcount(possible_to_queen);
-        };
-      };
-      while (non_discoverable_not_promoting_bishop_pinned_pawns) {
-        square_t from = pop_lsb(non_discoverable_not_promoting_bishop_pinned_pawns);
-        bitboard_t possible_to = attack<pawn>(from) & occupancy_opponent & this->king_bishop_ray[color] & non_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, pawn, pawn, this->pieces[to], false, false, false, false, bitboard(to) & pawn_checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-    };
-
-    // add legal knight moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_knight_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
-      constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, opponent);
-      bitboard_t checking_squares = attack<knight>(this->king_square[opponent]);
-      bitboard_t occupancy_color = this->bitboards[color];
-      bitboard_t non_discoverable_target = bitboard::none;
-      bitboard_t discoverable_target = bitboard::none;
-      if constexpr (gen & quiet) {
-        non_discoverable_target |= ~(checking_squares | this->bitboards[opponent]);
-      };
-      if constexpr (gen & check) {
-        non_discoverable_target |= checking_squares;
-        discoverable_target |= bitboard::full;
-      };
-      if constexpr (gen & capture) {
-        non_discoverable_target |= this->bitboards[opponent];
-        discoverable_target |= this->bitboards[opponent];
-      };
-      non_discoverable_target &= evasion_target;
-      discoverable_target &= evasion_target;
-      bitboard_t non_discoverable_free_knights = this->bitboards[knight] & ~this->bishop_pins[color] & ~this->rook_pins[color] & ~(this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      while (non_discoverable_free_knights) {
-        square_t from = pop_lsb(non_discoverable_free_knights);
-        bitboard_t possible_to = attack<knight>(from) & ~occupancy_color & non_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t discoverable_free_knights = this->bitboards[knight] & ~this->bishop_pins[color] & ~this->rook_pins[color] & (this->bishop_discoverable[color] | this->rook_discoverable[color]);
-      while (discoverable_free_knights) {
-        square_t from = pop_lsb(discoverable_free_knights);
-        bitboard_t possible_to = attack<knight>(from) & ~occupancy_color & discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, knight, knight, this->pieces[to], false, false, false, false, true));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-    };
-
-    // add legal bishop moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_bishop_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
-      bitboard_t checking_squares = this->king_bishop_attack[opponent];
-      bitboard_t non_discoverable_target = bitboard::none;
-      bitboard_t rook_discoverable_target = bitboard::none;
-      if constexpr (gen & quiet) {
-        non_discoverable_target |= ~(checking_squares | this->bitboards[opponent]);
-      };
-      if constexpr (gen & check) {
-        non_discoverable_target |= checking_squares;
-        rook_discoverable_target |= bitboard::full;
-      };
-      if constexpr (gen & capture) {
-        non_discoverable_target |= this->bitboards[opponent];
-        rook_discoverable_target |= this->bitboards[opponent];
-      };
-      non_discoverable_target &= evasion_target;
-      rook_discoverable_target &= evasion_target;
-      bitboard_t occupancy = this->bitboards[color::none];
-      bitboard_t occupancy_color = this->bitboards[color];
-      bitboard_t non_discoverable_bishop_pinned_bishops = this->bitboards[bishop] & this->bishop_pins[color] & ~this->rook_pins[color] & ~this->rook_discoverable[color];
-      while (non_discoverable_bishop_pinned_bishops) {
-        square_t from = pop_lsb(non_discoverable_bishop_pinned_bishops);
-        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & non_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t non_discoverable_free_bishops = this->bitboards[bishop] & ~this->bishop_pins[color] & ~this->rook_pins[color] & ~this->rook_discoverable[color];
-      while (non_discoverable_free_bishops) {
-        square_t from = pop_lsb(non_discoverable_free_bishops);
-        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & non_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t rook_discoverable_bishop_pinned_bishops = this->bitboards[bishop] & this->bishop_pins[color] & ~this->rook_pins[color] & this->rook_discoverable[color];
-      while (rook_discoverable_bishop_pinned_bishops) {
-        square_t from = pop_lsb(rook_discoverable_bishop_pinned_bishops);
-        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & rook_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, true));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t rook_discoverable_free_bishops = this->bitboards[bishop] & ~this->bishop_pins[color] & ~this->rook_pins[color] & this->rook_discoverable[color];
-      while (rook_discoverable_free_bishops) {
-        square_t from = pop_lsb(rook_discoverable_free_bishops);
-        bitboard_t possible_to = attack<bishop>(from, occupancy) & ~occupancy_color & rook_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, bishop, bishop, this->pieces[to], false, false, false, false, true));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-    };
-
-    // add legal rook moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_rook_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
-      bitboard_t checking_squares = this->king_rook_attack[opponent];
-      bitboard_t non_discoverable_target = bitboard::none;
-      bitboard_t bishop_discoverable_target = bitboard::none;
-      if constexpr (gen & quiet) {
-        non_discoverable_target |= ~(checking_squares | this->bitboards[opponent]);
-      };
-      if constexpr (gen & check) {
-        non_discoverable_target |= checking_squares;
-        bishop_discoverable_target |= bitboard::full;
-      };
-      if constexpr (gen & capture) {
-        non_discoverable_target |= this->bitboards[opponent];
-        bishop_discoverable_target |= this->bitboards[opponent];
-      };
-      non_discoverable_target &= evasion_target;
-      bishop_discoverable_target &= evasion_target;
-      bitboard_t occupancy = this->bitboards[color::none];
-      bitboard_t occupancy_color = this->bitboards[color];
-      bitboard_t non_discoverable_rook_pinned_rooks = this->bitboards[rook] & ~this->bishop_pins[color] & this->rook_pins[color] & ~this->bishop_discoverable[color];
-      while (non_discoverable_rook_pinned_rooks) {
-        square_t from = pop_lsb(non_discoverable_rook_pinned_rooks);
-        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & non_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t non_discoverable_free_rooks = this->bitboards[rook] & ~this->bishop_pins[color] & ~this->rook_pins[color] & ~this->bishop_discoverable[color];
-      while (non_discoverable_free_rooks) {
-        square_t from = pop_lsb(non_discoverable_free_rooks);
-        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & non_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t bishop_discoverable_rook_pinned_rooks = this->bitboards[rook] & ~this->bishop_pins[color] & this->rook_pins[color] & this->bishop_discoverable[color];
-      while (bishop_discoverable_rook_pinned_rooks) {
-        square_t from = pop_lsb(bishop_discoverable_rook_pinned_rooks);
-        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & bishop_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, true));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t bishop_discoverable_free_rooks = this->bitboards[rook] & ~this->bishop_pins[color] & ~this->rook_pins[color] & this->bishop_discoverable[color];
-      while (bishop_discoverable_free_rooks) {
-        square_t from = pop_lsb(bishop_discoverable_free_rooks);
-        bitboard_t possible_to = attack<rook>(from, occupancy) & ~occupancy_color & bishop_discoverable_target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, rook, rook, this->pieces[to], false, false, false, false, true));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-    };
-
-    // add legal queen moves to the move stack
-    template <color_t color, gen_t gen, typename T>
-    void add_queen_moves(T& moves, const bitboard_t& evasion_target=bitboard::full) {
-      constexpr color_t opponent = color::compiletime::opponent(color);
-      constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-      bitboard_t checking_squares = this->king_bishop_attack[opponent] | this->king_rook_attack[opponent];
-      bitboard_t target = bitboard::none;
-      if constexpr (gen & quiet) {
-        target |= ~(checking_squares | this->bitboards[opponent]);
-      };
-      if constexpr (gen & check) {
-        target |= checking_squares;
-      };
-      if constexpr (gen & capture) {
-        target |= this->bitboards[opponent];
-      };
-      target &= evasion_target;
-      bitboard_t occupancy = this->bitboards[color::none];
-      bitboard_t occupancy_color = this->bitboards[color];
-      bitboard_t bishop_pinned_queens = this->bitboards[queen] & this->bishop_pins[color] & ~this->rook_pins[color];
-      while (bishop_pinned_queens) {
-        square_t from = pop_lsb(bishop_pinned_queens);
-        bitboard_t possible_to = attack<piece::bishop>(from, occupancy) & ~occupancy_color & this->king_bishop_ray[color] & target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t rook_pinned_queens = this->bitboards[queen] & ~this->bishop_pins[color] & this->rook_pins[color];
-      while (rook_pinned_queens) {
-        square_t from = pop_lsb(rook_pinned_queens);
-        bitboard_t possible_to = attack<piece::rook>(from, occupancy) & ~occupancy_color & this->king_rook_ray[color] & target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
-      bitboard_t free_queens = this->bitboards[queen] & ~this->bishop_pins[color] & ~this->rook_pins[color];
-      while (free_queens) {
-        square_t from = pop_lsb(free_queens);
-        bitboard_t possible_to = attack<piece::queen>(from, occupancy) & ~occupancy_color & target;
-        if constexpr (std::is_same_v<T, move_stack_t>) {
-          while (possible_to) {
-            square_t to = pop_lsb(possible_to);
-            moves.push(move::move(from, to, queen, queen, this->pieces[to], false, false, false, false, bitboard(to) & checking_squares));
-          };
-        } else {
-          moves += popcount(possible_to);
-        };
-      };
+      return this->history.count([this](undo_t undo) {return undo.hash == this->zobrist.hash;});
     };
 };
 

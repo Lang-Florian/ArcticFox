@@ -100,8 +100,8 @@ namespace move {
     return captured_piece(move) != piece::none;
   };
 
-  // get a uci move string
-  std::string uci(move_t move) {
+  // get a uci string from a move
+  std::string to_string(move_t move) {
     return (
       square::to_string(from(move)) +
       square::to_string(to(move)) +
@@ -119,6 +119,7 @@ namespace move {
     );
   };
 
+  // mvv sorting key
   move_t mvv_lva_key(move_t move) {
     constexpr move_t move_piece_mask = 0b11111 << 19;
     if (capture(move)) {
@@ -129,15 +130,15 @@ namespace move {
 
   struct {
     bool operator()(move_t move1, move_t move2) const {
-      return move::mvv_lva_key(move1) < move::mvv_lva_key(move2);
+      return move::mvv_lva_key(move1) > move::mvv_lva_key(move2);
     };
-  } reverse_ordering;
+  } comparison;
 
   struct {
     bool operator()(move_t move1, move_t move2) const {
-      return move::mvv_lva_key(move1) > move::mvv_lva_key(move2);
+      return move::mvv_lva_key(move1) < move::mvv_lva_key(move2);
     };
-  } ordering;
+  } reverse_comparison;
 
   move_t none = (move_t)0;
 };

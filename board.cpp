@@ -376,7 +376,6 @@ class Board {
     };
 
     // check if a position already exists in the history
-    template <color_t color>
     bool position_existed() {
       return this->history.count([this](undo_t undo) {return undo.hash == this->zobrist.hash;});
     };

@@ -357,7 +357,6 @@ class Board {
       );
     };
 
-    
     // see if current position is check
     template <color_t color>
     bool is_check() {

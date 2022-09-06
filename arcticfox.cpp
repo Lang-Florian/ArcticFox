@@ -1,6 +1,5 @@
 #include <iostream>
 
-#include "constants.cpp"
 #include "uci.cpp"
 
 

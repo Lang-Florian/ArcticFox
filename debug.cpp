@@ -7,10 +7,14 @@
 #define __DEBUG__MODULE__
 
 
+#include <fstream>
 #include <iostream>
+#include <sstream>
 
+#include "board.cpp"
 #include "constants.cpp"
 #include "board.cpp"
+#include "perft.cpp"
 
 
 /*
@@ -31,6 +35,58 @@ void print_board(Board& board) {
   };
   std::cout << "   a   b   c   d   e   f   g   h" << std::endl << std::endl;
   std::cout << "Fen: " << board.fen() << std::endl;
+};
+
+void perft_test_suite(Board& board, std::string edp_file_path) {
+  std::string original_fen = board.fen();
+  std::ifstream edp_file(edp_file_path);
+  if (!edp_file.is_open()) {
+    edp_file.open("test/" + edp_file_path);
+    if (!edp_file.is_open()) {
+      return;
+    };
+  };
+  std::string line;
+  int correct_positions = 0;
+  int total_positions = 0;
+  float total_time = 0;
+  u64_t total_nodes = 0;
+  while (std::getline(edp_file, line)) {
+    std::istringstream line_stream(line);
+    std::string fen;
+    std::getline(line_stream, fen, ';');
+    board.set_fen(fen);
+    std::cout << "\tFen: " << board.fen() << std::endl;
+    std::string depth_token;
+    std::string nodes_token;
+    while (line_stream >> depth_token) {
+      line_stream >> nodes_token;
+      int depth = std::stoi(depth_token.substr(1));
+      u64_t nodes = std::stol(nodes_token);
+      perft::perft_result_t perft_result;
+      if (board.turn == color::white) {
+        perft_result = perft::perft(board, depth, false);
+      } else {
+        perft_result = perft::perft(board, depth, false);
+      };
+      if (perft_result.nodes == nodes) {
+        std::cout << "OK     ";
+      } else {
+        std::cout << "FAILED!";
+      };
+      std::cout << "\t  Depth:" << depth;
+      std::cout << "\tResult: " << perft_result.nodes << std::endl;
+      correct_positions += perft_result.nodes == nodes;
+      total_positions++;
+      total_time += perft_result.time;
+      total_nodes += perft_result.nodes;
+    };
+    std::cout << std::endl;
+  };
+  std::cout << "Correct: " << correct_positions << "/" << total_positions << std::endl;
+  std::cout << "Total time: " << total_time << " s" << std::endl;
+  std::cout << "Mean MNps: " << (total_nodes / total_time) * 1e-6 << std::endl;
+  board.set_fen(original_fen);
 };
 
 

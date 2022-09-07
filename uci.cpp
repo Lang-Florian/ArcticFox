@@ -31,11 +31,11 @@ void go(Board& board, std::istringstream& string_stream) {
     if (token == "perft") {
       int depth;
       string_stream >> depth;
-      perft::perft(board, depth);
+      perft::perft(board, depth, true);
       return;
     };
   };
-  std::cout << "bestmove " << move::to_string(search::search(board, 7).pv[0]) << std::endl;
+  std::cout << "bestmove " << move::to_string(search::search(board, 8).pv[0]) << std::endl;
 };
 
 void position(Board& board, std::istringstream& string_stream) {
@@ -54,6 +54,16 @@ void position(Board& board, std::istringstream& string_stream) {
     while (string_stream >> token) {
       board.push_uci(token);
     };
+  };
+};
+
+void test(Board& board, std::istringstream& string_stream) {
+  std::string token;
+  string_stream >> token;
+  if (token == "perft") {
+    std::string edp_file_path;
+    string_stream >> edp_file_path;
+    perft_test_suite(board, edp_file_path);
   };
 };
 
@@ -81,6 +91,8 @@ void uci() {
     } else if (token == "arcticfox") {
       std::cout << ascii_art << std::endl;
       std::cout << "Arctic Foxes are the most beautiful animals in the world." << std::endl;
+    } else if (token == "test") {
+      test(board, string_stream);
     };
   } while (token != "quit");
 };

@@ -270,7 +270,7 @@ namespace magic {
 				bitboard_t occupancy = generate_occupancy(occupancy_index, bishop_attack_ray);
 				table[
 					bishop[square].offset +
-					(((occupancy | bishop[square].mask) * bishop[square].magic_number) >> (64 - 9))
+					(((occupancy | bishop[square].mask) * bishop[square].magic_number) >> 55)
 				] = attack::slow::bishop(square, occupancy);
 			};
 			bitboard_t rook_attack_ray = incomplete_attack_ray::rook[square];
@@ -279,7 +279,7 @@ namespace magic {
 				bitboard_t occupancy = generate_occupancy(occupancy_index, rook_attack_ray);
 				table[
 					rook[square].offset +
-					(((occupancy | rook[square].mask) * rook[square].magic_number) >> (64 - 12))
+					(((occupancy | rook[square].mask) * rook[square].magic_number) >> 52)
 				] = attack::slow::rook(square, occupancy);
 			};
 		};

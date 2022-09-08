@@ -31,7 +31,16 @@ void go(Board& board, std::istringstream& string_stream) {
     if (token == "perft") {
       int depth;
       string_stream >> depth;
-      perft::perft(board, depth, true);
+      string_stream >> token;
+      if (token == "quiet") {
+        perft::perft<quiet>(board, depth, true);
+      } else if (token == "check") {
+        perft::perft<check>(board, depth, true);
+      } else if (token == "capture") {
+        perft::perft<capture>(board, depth, true);
+      } else {
+        perft::perft<legal>(board, depth, true);
+      };
       return;
     };
   };

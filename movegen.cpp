@@ -33,10 +33,6 @@ namespace movegen {
     bitboard_t bishop_checking_squares;
     bitboard_t rook_checking_squares;
     bitboard_t rook_checking_squares_castling;
-    bitboard_t bishop_pinned_target;
-    bitboard_t rook_pinned_target;
-    bitboard_t bishop_discovery_squares;
-    bitboard_t rook_discovery_squares;
     bitboard_t evasion_target;
     bitboard_t attacked_squares;
     bitboard_t unsafe_king_squares;
@@ -57,8 +53,8 @@ namespace movegen {
       constexpr piece_t opponent_queen = piece::compiletime::to_color(piece::queen, opponent);
       constexpr piece_t opponent_rook = piece::compiletime::to_color(piece::rook, opponent);
       constexpr piece_t opponent_bishop = piece::compiletime::to_color(piece::bishop, opponent);
-      constexpr std::array<piece_t, 6> pieces = piece::all_pieces_by_color[color];
-      constexpr std::array<piece_t, 6> opponent_pieces = piece::all_pieces_by_color[opponent];
+      constexpr piece_t opponent_knight = piece::compiletime::to_color(piece::knight, opponent);
+      constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
       this->king_square = get_lsb(board.bitboards[king]);
       this->opponent_king_square = get_lsb(board.bitboards[opponent_king]);
       bitboard_t king_bishop_attack = attack<piece::bishop>(this->king_square, board.bitboards[piece::none]);
@@ -68,10 +64,6 @@ namespace movegen {
       this->bishop_checking_squares = attack<piece::bishop>(this->opponent_king_square, board.bitboards[color::none]);
       this->rook_checking_squares = attack<piece::rook>(this->opponent_king_square, board.bitboards[color::none]);
       this->rook_checking_squares_castling = attack<piece::rook>(this->opponent_king_square, board.bitboards[color::none] & ~board.bitboards[king]);
-      this->bishop_pinned_target = attack_ray::bishop[this->king_square];
-      this->rook_pinned_target = attack_ray::rook[this->king_square];
-      this->bishop_discovery_squares = ~attack_ray::bishop[this->opponent_king_square];
-      this->rook_discovery_squares = ~attack_ray::rook[this->opponent_king_square];
       this->evasion_target = bitboard::full;
       if (popcount(this->checkers) > 1) {
         this->evasion_target = bitboard::none;
@@ -98,22 +90,46 @@ namespace movegen {
       };
       this->attacked_squares = bitboard::none;
       this->unsafe_king_squares = bitboard::none;
-      for (piece_t piece : opponent_pieces) {
-        bitboard_t pieces = board.bitboards[piece];
-        while (pieces) {
-          square_t square = pop_lsb(pieces);
-          this->attacked_squares |= attack_array[piece](square, board.bitboards[piece::none]);
-          this->unsafe_king_squares |= attack_array[piece](square, board.bitboards[piece::none] & ~board.bitboards[king]);
-        };
+      bitboard_t opponent_pawns = board.bitboards[opponent_pawn];
+      while (opponent_pawns) {
+        square_t square = pop_lsb(opponent_pawns);
+        this->attacked_squares |= attack<opponent_pawn>(square);
+        this->unsafe_king_squares |= attack<opponent_pawn>(square);
       };
+      bitboard_t opponent_knights = board.bitboards[opponent_knight];
+      while (opponent_knights) {
+        square_t square = pop_lsb(opponent_knights);
+        this->attacked_squares |= attack<opponent_knight>(square);
+        this->unsafe_king_squares |= attack<opponent_knight>(square);
+      };
+      bitboard_t opponent_bishops = board.bitboards[opponent_bishop];
+      while (opponent_bishops) {
+        square_t square = pop_lsb(opponent_bishops);
+        this->attacked_squares |= attack<opponent_bishop>(square, board.bitboards[piece::none]);
+        this->unsafe_king_squares |= attack<opponent_bishop>(square, board.bitboards[piece::none] & ~board.bitboards[king]);
+      };
+      bitboard_t opponent_rooks = board.bitboards[opponent_rook];
+      while (opponent_rooks) {
+        square_t square = pop_lsb(opponent_rooks);
+        this->attacked_squares |= attack<opponent_rook>(square, board.bitboards[piece::none]);
+        this->unsafe_king_squares |= attack<opponent_rook>(square, board.bitboards[piece::none] & ~board.bitboards[king]);
+      };
+      bitboard_t opponent_queens = board.bitboards[opponent_queen];
+      while (opponent_queens) {
+        square_t square = pop_lsb(opponent_queens);
+        this->attacked_squares |= attack<opponent_queen>(square, board.bitboards[piece::none]);
+        this->unsafe_king_squares |= attack<opponent_queen>(square, board.bitboards[piece::none] & ~board.bitboards[king]);
+      };
+      this->attacked_squares |= attack<opponent_king>(this->opponent_king_square);
+      this->unsafe_king_squares |= attack<opponent_king>(this->opponent_king_square);
       this->bishop_pinned = bitboard::none;
-      bitboard_t bishop_attackers = (board.bitboards[opponent_bishop] | board.bitboards[opponent_queen]) & this->bishop_pinned_target;
+      bitboard_t bishop_attackers = (board.bitboards[opponent_bishop] | board.bitboards[opponent_queen]) & attack_ray::bishop[this->king_square];
       while (bishop_attackers) {
         square_t square = pop_lsb(bishop_attackers);
         this->bishop_pinned |= attack<piece::bishop>(square, board.bitboards[color::none]) & king_bishop_attack;
       };
       this->rook_pinned = bitboard::none;
-      bitboard_t rook_attackers = (board.bitboards[opponent_rook] | board.bitboards[opponent_queen]) & this->rook_pinned_target;
+      bitboard_t rook_attackers = (board.bitboards[opponent_rook] | board.bitboards[opponent_queen]) & attack_ray::rook[this->king_square];
       while (rook_attackers) {
         square_t square = pop_lsb(rook_attackers);
         this->rook_pinned |= attack<piece::rook>(square, board.bitboards[color::none]) & king_rook_attack;
@@ -127,7 +143,7 @@ namespace movegen {
         } else {
           enpassant_pawns = bitboard(board.enpassant) >> 8;
         };
-        bitboard_t enpassant_attackers = (board.bitboards[opponent_rook] | board.bitboards[opponent_queen]) & this->rook_pinned_target;
+        bitboard_t enpassant_attackers = (board.bitboards[opponent_rook] | board.bitboards[opponent_queen]) & attack_ray::rook[this->king_square];
         while (enpassant_attackers) {
           square_t square = pop_lsb(enpassant_attackers);
           this->enpassant_pinned |= attack<piece::rook>(square, board.bitboards[color::none] & ~enpassant_pawns) & attack<piece::rook>(king_square, board.bitboards[color::none] & ~enpassant_pawns);
@@ -228,9 +244,9 @@ namespace movegen {
     constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
     bitboard_t checking_squares = bitboard::none;
     if (board.bitboards[king] & info.bishop_discoverable)
-      checking_squares |= info.bishop_discovery_squares;
+      checking_squares |= ~attack_ray::bishop[info.opponent_king_square];
     if (board.bitboards[king] & info.rook_discoverable)
-      checking_squares |= info.rook_discovery_squares;
+      checking_squares |= ~attack_ray::rook[info.opponent_king_square];
     bitboard_t target = bitboard::none;
     if constexpr (gen & quiet)
       target |= ~(checking_squares | board.bitboards[opponent]);
@@ -266,7 +282,7 @@ namespace movegen {
     bitboard_t bishop_pinned_queens = board.bitboards[queen] & info.bishop_pinned & ~info.rook_pinned;
     while (bishop_pinned_queens) {
       square_t from = pop_lsb(bishop_pinned_queens);
-      bitboard_t possible_to = attack<piece::bishop>(from, board.bitboards[color::none]) & ~board.bitboards[color] & target & info.bishop_pinned_target;
+      bitboard_t possible_to = attack<piece::bishop>(from, board.bitboards[color::none]) & ~board.bitboards[color] & target & attack_ray::bishop[info.king_square];
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -279,7 +295,7 @@ namespace movegen {
     bitboard_t rook_pinned_queens = board.bitboards[queen] & ~info.bishop_pinned & info.rook_pinned;
     while (rook_pinned_queens) {
       square_t from = pop_lsb(rook_pinned_queens);
-      bitboard_t possible_to = attack<piece::rook>(from, board.bitboards[color::none]) & ~board.bitboards[color] & target & info.rook_pinned_target;
+      bitboard_t possible_to = attack<piece::rook>(from, board.bitboards[color::none]) & ~board.bitboards[color] & target & attack_ray::rook[info.king_square];
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -327,7 +343,7 @@ namespace movegen {
     bitboard_t non_discoverable_rook_pinned_rooks = board.bitboards[rook] & ~info.bishop_pinned & info.rook_pinned & ~info.bishop_discoverable;
     while (non_discoverable_rook_pinned_rooks) {
       square_t from = pop_lsb(non_discoverable_rook_pinned_rooks);
-      bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & ~board.bitboards[color] & non_discoverable_target & info.rook_pinned_target;
+      bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & ~board.bitboards[color] & non_discoverable_target & attack_ray::rook[info.king_square];
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -353,7 +369,7 @@ namespace movegen {
     bitboard_t bishop_discoverable_rook_pinned_rooks = board.bitboards[rook] & ~info.bishop_pinned & info.rook_pinned & info.bishop_discoverable;
     while (bishop_discoverable_rook_pinned_rooks) {
       square_t from = pop_lsb(bishop_discoverable_rook_pinned_rooks);
-      bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & ~board.bitboards[color] & bishop_discoverable_target & info.rook_pinned_target;
+      bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & ~board.bitboards[color] & bishop_discoverable_target & attack_ray::rook[info.king_square];
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -401,7 +417,7 @@ namespace movegen {
     bitboard_t non_discoverable_bishop_pinned_bishops = board.bitboards[bishop] & info.bishop_pinned & ~info.rook_pinned & ~info.rook_discoverable;
     while (non_discoverable_bishop_pinned_bishops) {
       square_t from = pop_lsb(non_discoverable_bishop_pinned_bishops);
-      bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & ~board.bitboards[color] & non_discoverable_target & info.bishop_pinned_target;
+      bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & ~board.bitboards[color] & non_discoverable_target & attack_ray::bishop[info.king_square];
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -427,7 +443,7 @@ namespace movegen {
     bitboard_t rook_discoverable_bishop_pinned_bishops = board.bitboards[bishop] & info.bishop_pinned & ~info.rook_pinned & info.rook_discoverable;
     while (rook_discoverable_bishop_pinned_bishops) {
       square_t from = pop_lsb(rook_discoverable_bishop_pinned_bishops);
-      bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & ~board.bitboards[color] & rook_discoverable_target & info.bishop_pinned_target;
+      bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & ~board.bitboards[color] & rook_discoverable_target & attack_ray::bishop[info.king_square];
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -587,7 +603,7 @@ namespace movegen {
     };
     while (discoverable_promoting_bishop_pinned_pawns) {
       square_t from = pop_lsb(discoverable_promoting_bishop_pinned_pawns);
-      bitboard_t possible_to = attack<pawn>(from) & board.bitboards[opponent] & info.bishop_pinned_target & discoverable_target;
+      bitboard_t possible_to = attack<pawn>(from) & board.bitboards[opponent] & attack_ray::bishop[info.king_square] & discoverable_target;
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -602,7 +618,7 @@ namespace movegen {
     };
     while (discoverable_not_promoting_bishop_pinned_pawns) {
       square_t from = pop_lsb(discoverable_not_promoting_bishop_pinned_pawns);
-      bitboard_t possible_to = attack<pawn>(from) & board.bitboards[opponent] & info.bishop_pinned_target & discoverable_target;
+      bitboard_t possible_to = attack<pawn>(from) & board.bitboards[opponent] & attack_ray::bishop[info.king_square] & discoverable_target;
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -665,10 +681,10 @@ namespace movegen {
       square_t from = pop_lsb(non_discoverable_promoting_bishop_pinned_pawns);
       bitboard_t bishop_checking_squares = attack<piece::bishop>(info.opponent_king_square, board.bitboards[piece::none] & ~bitboard(from));
       bitboard_t queen_checking_squares = attack<piece::queen>(info.opponent_king_square, board.bitboards[piece::none] & ~bitboard(from));
-      bitboard_t possible_to_knight = attack<pawn>(from) & board.bitboards[opponent] & info.bishop_pinned_target & non_discoverable_knight_promoting_target;
-      bitboard_t possible_to_bishop = attack<pawn>(from) & board.bitboards[opponent] & info.bishop_pinned_target & non_discoverable_bishop_promoting_target;
-      bitboard_t possible_to_rook = attack<pawn>(from) & board.bitboards[opponent] & info.bishop_pinned_target & non_discoverable_rook_promoting_target;
-      bitboard_t possible_to_queen = attack<pawn>(from) & board.bitboards[opponent] & info.bishop_pinned_target & non_discoverable_queen_promoting_target;
+      bitboard_t possible_to_knight = attack<pawn>(from) & board.bitboards[opponent] & attack_ray::bishop[info.king_square] & non_discoverable_knight_promoting_target;
+      bitboard_t possible_to_bishop = attack<pawn>(from) & board.bitboards[opponent] & attack_ray::bishop[info.king_square] & non_discoverable_bishop_promoting_target;
+      bitboard_t possible_to_rook = attack<pawn>(from) & board.bitboards[opponent] & attack_ray::bishop[info.king_square] & non_discoverable_rook_promoting_target;
+      bitboard_t possible_to_queen = attack<pawn>(from) & board.bitboards[opponent] & attack_ray::bishop[info.king_square] & non_discoverable_queen_promoting_target;
       if constexpr ((gen & check) && !(gen & capture)) {
         possible_to_bishop &= bishop_checking_squares;
         possible_to_queen &= queen_checking_squares;
@@ -696,7 +712,7 @@ namespace movegen {
     };
     while (non_discoverable_not_promoting_bishop_pinned_pawns) {
       square_t from = pop_lsb(non_discoverable_not_promoting_bishop_pinned_pawns);
-      bitboard_t possible_to = attack<pawn>(from) & board.bitboards[opponent] & info.bishop_pinned_target & non_discoverable_target;
+      bitboard_t possible_to = attack<pawn>(from) & board.bitboards[opponent] & attack_ray::bishop[info.king_square] & non_discoverable_target;
       if constexpr (std::is_same_v<T, move_stack_t>) {
         while (possible_to) {
           square_t to = pop_lsb(possible_to);
@@ -734,11 +750,11 @@ namespace movegen {
       bool is_check = (
         is_always_check ||
         (info.rook_discoverable & bitboard(from)) ||
-        ((info.bishop_discoverable & bitboard(from)) && (info.bishop_discovery_squares & bitboard(board.enpassant))) ||
+        ((info.bishop_discoverable & bitboard(from)) && (~attack_ray::bishop[info.opponent_king_square] & bitboard(board.enpassant))) ||
         (attack<rook>(info.opponent_king_square, (board.bitboards[piece::none] & ~bitboard(from) & ~bitboard(board.enpassant + enpassant_offset)) | bitboard(board.enpassant)) & (board.bitboards[rook] | board.bitboards[queen]))
       );
       bool enpassant = (
-        (info.bishop_pinned_target & bitboard(board.enpassant)) &&
+        (attack_ray::bishop[info.king_square] & bitboard(board.enpassant)) &&
         (
           (info.evasion_target & bitboard(board.enpassant)) ||
           (board.enpassant + enpassant_offset == info.checker_square)
@@ -766,7 +782,7 @@ namespace movegen {
       bool is_check = (
         is_always_check ||
         (info.rook_discoverable & bitboard(from)) ||
-        ((info.bishop_discoverable & bitboard(from)) && (info.bishop_discovery_squares & bitboard(board.enpassant))) ||
+        ((info.bishop_discoverable & bitboard(from)) && (~attack_ray::bishop[info.opponent_king_square] & bitboard(board.enpassant))) ||
         (attack<rook>(info.opponent_king_square, (board.bitboards[piece::none] & ~bitboard(from) & ~bitboard(board.enpassant + enpassant_offset)) | bitboard(board.enpassant)) & (board.bitboards[rook] | board.bitboards[queen]))
       );
       bool enpassant = (
@@ -837,21 +853,21 @@ namespace movegen {
     if constexpr (color == color::white) {
       pushable_pawns = (
         (free_pawns & ~(board.bitboards[color::none] << 8) & (info.evasion_target << 8) & ~bitboard::rank_7) |
-        (rook_pinned_pawns & ~(board.bitboards[color::none] << 8) & (info.evasion_target << 8) & (info.rook_pinned_target << 8))
+        (rook_pinned_pawns & ~(board.bitboards[color::none] << 8) & (info.evasion_target << 8) & (attack_ray::rook[info.king_square] << 8))
       );
       doublepushable_pawns = (
         (free_pawns & ~(board.bitboards[color::none] << 8) & ~(board.bitboards[color::none] << 16) & (info.evasion_target << 16) & bitboard::rank_2) |
-        (rook_pinned_pawns & ~(board.bitboards[color::none] << 8) & ~(board.bitboards[color::none] << 16) & (info.evasion_target << 16) & bitboard::rank_2 & (info.rook_pinned_target << 16))
+        (rook_pinned_pawns & ~(board.bitboards[color::none] << 8) & ~(board.bitboards[color::none] << 16) & (info.evasion_target << 16) & bitboard::rank_2 & (attack_ray::rook[info.king_square] << 16))
       );
       promoting_pawns = free_pawns & ~(board.bitboards[color::none] << 8) & (info.evasion_target << 8) & bitboard::rank_7;
     } else {
       pushable_pawns = (
         (free_pawns & ~(board.bitboards[color::none] >> 8) & (info.evasion_target >> 8) & ~bitboard::rank_2) |
-        (rook_pinned_pawns & ~(board.bitboards[color::none] >> 8) & (info.evasion_target >> 8) & (info.rook_pinned_target >> 8))
+        (rook_pinned_pawns & ~(board.bitboards[color::none] >> 8) & (info.evasion_target >> 8) & (attack_ray::rook[info.king_square] >> 8))
       );
       doublepushable_pawns = (
         (free_pawns & ~(board.bitboards[color::none] >> 8) & ~(board.bitboards[color::none] >> 16) & (info.evasion_target >> 16) & bitboard::rank_7) |
-        (rook_pinned_pawns & ~(board.bitboards[color::none] >> 8) & ~(board.bitboards[color::none] >> 16) & (info.evasion_target >> 16) & bitboard::rank_7 & (info.rook_pinned_target >> 16))
+        (rook_pinned_pawns & ~(board.bitboards[color::none] >> 8) & ~(board.bitboards[color::none] >> 16) & (info.evasion_target >> 16) & bitboard::rank_7 & (attack_ray::rook[info.king_square] >> 16))
       );
       promoting_pawns = free_pawns & ~(board.bitboards[color::none] >> 8) & (info.evasion_target >> 8) & bitboard::rank_2;
     };

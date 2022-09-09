@@ -190,7 +190,7 @@ bitboard_t attackers(board::Board& board, square_t square) {
   return (
     (attack::attack<opponent_pawn>(square) & board.bitboards[pawn]) |
     (attack::attack<piece::knight>(square) & board.bitboards[knight]) |
-    (attack::attack<piece::bishop>(square, board.bitboards[piece::none]) & (board.bitboards[bishop] | board.bitboard[queen])) |
+    (attack::attack<piece::bishop>(square, board.bitboards[piece::none]) & (board.bitboards[bishop] | board.bitboards[queen])) |
     (attack::attack<piece::rook>(square, board.bitboards[piece::none]) & (board.bitboards[rook] | board.bitboards[queen])) |
     (attack::attack<piece::king>(square) & board.bitboards[king])
   );

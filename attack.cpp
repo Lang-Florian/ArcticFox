@@ -88,13 +88,13 @@ constexpr std::array<bitboard_t, 64> generate_king() {
   std::array<bitboard_t, 64> king{bitboard::none};
   for (auto square : square::all) {
     king[square] = ((bitboard(square) >> 1) & ~bitboard::file_h) |
-                    ((bitboard(square) << 1) & ~bitboard::file_a) |
-                    ((bitboard(square) >> 8) & ~bitboard::rank_1) |
-                    ((bitboard(square) << 8) & ~bitboard::rank_8) |
-                    ((bitboard(square) >> 7) & ~bitboard::file_a & ~bitboard::rank_1) |
-                    ((bitboard(square) << 7) & ~bitboard::file_h & ~bitboard::rank_8) |
-                    ((bitboard(square) >> 9) & ~bitboard::file_h & ~bitboard::rank_1) |
-                    ((bitboard(square) << 9) & ~bitboard::file_a & ~bitboard::rank_8);
+                   ((bitboard(square) << 1) & ~bitboard::file_a) |
+                   ((bitboard(square) >> 8) & ~bitboard::rank_1) |
+                   ((bitboard(square) << 8) & ~bitboard::rank_8) |
+                   ((bitboard(square) >> 7) & ~bitboard::file_a & ~bitboard::rank_1) |
+                   ((bitboard(square) << 7) & ~bitboard::file_h & ~bitboard::rank_8) |
+                   ((bitboard(square) >> 9) & ~bitboard::file_h & ~bitboard::rank_1) |
+                   ((bitboard(square) << 9) & ~bitboard::file_a & ~bitboard::rank_8);
   };
   return king;
 };

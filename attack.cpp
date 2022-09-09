@@ -58,15 +58,17 @@ constexpr std::array<bitboard_t, 64> rook = generate_rook();
 
 // generate the pawn knight and king attack tables at compile time
 namespace attack::table {
-constexpr std::array<std::array<bitboard_t, 2>, 64> generate_pawn() {
-  std::array<std::array<bitboard_t, 2>, 64> pawn{bitboard::none};
+constexpr std::array<std::array<bitboard_t, 2>, 65> generate_pawn() {
+  std::array<std::array<bitboard_t, 2>, 65> pawn{bitboard::none};
   for (auto square : square::all) {
     pawn[square][color::white] = ((bitboard(square) >> 9) & ~bitboard::file_h) | ((bitboard(square) >> 7) & ~bitboard::file_a);
     pawn[square][color::black] = ((bitboard(square) << 9) & ~bitboard::file_a) | ((bitboard(square) << 7) & ~bitboard::file_h);
   };
+  pawn[square::none][color::white] = bitboard::none;
+  pawn[square::none][color::black] = bitboard::none;
   return pawn;
 };
-constexpr std::array<std::array<bitboard_t, 2>, 64> pawn = generate_pawn();
+constexpr std::array<std::array<bitboard_t, 2>, 65> pawn = generate_pawn();
 
 constexpr std::array<bitboard_t, 64> generate_knight() {
   std::array<bitboard_t, 64> knight{bitboard::none};

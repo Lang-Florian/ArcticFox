@@ -1,17 +1,8 @@
 #ifdef __INTELLISENSE__
   #pragma diag_suppress 28
 #endif
-
-
 #ifndef __TYPES__MODULE__
 #define __TYPES__MODULE__
-
-
-/*
-
-  most used types
-
-*/
 
 
 #define u8_t unsigned char
@@ -27,17 +18,17 @@
 #define bitboard_t u64_t
 #define castling_t u8_t
 #define color_t u8_t
-#define gen_t u8_t
 #define hash_t u64_t
 #define move_t u32_t
+#define movetype_t u8_t
 #define outcome_t u8_t
 #define piece_t u8_t
 #define score_t i16_t
 #define square_t u8_t
 
 
-#define move_stack_t Stack<move_t, MAX_MOVE_LENGTH>
-#define pv_t Stack<move_t, 64>
+#define move_stack_t stack::Stack<move_t, MAX_MOVE_GENERATION_SIZE>
+#define pv_t stack::Stack<move_t, MAX_PV_DEPTH>
 
 
-#endif // __TYPES__MODULE__
+#endif

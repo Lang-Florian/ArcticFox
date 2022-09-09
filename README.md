@@ -1,4 +1,4 @@
-# ChessFox
+# ArcticFox
 
 A chess engine written in C++.
 

@@ -30,7 +30,7 @@ void go(board::Board& board, std::istringstream& string_stream) {
     int depth;
     std::string movetype;
     string_stream >> depth;
-    string_stream >> token;
+    string_stream >> movetype;
     if (movetype == "quiet") {
       perft::perft<movetype::quiet>(board, depth, true);
     } else if (movetype == "check") {

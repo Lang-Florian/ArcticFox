@@ -7,6 +7,7 @@
 
 #include <array>
 #include "base/base.cpp"
+#include "board.cpp"
 #include "magic.cpp"
 
 
@@ -132,6 +133,40 @@ bitboard_t attack(square_t square, bitboard_t occupancy=bitboard::none) {
   } else {
     return bitboard::none;
   };
+};
+
+// get all the attacks on a square
+bitboard_t attackers(board::Board& board, square_t square) {
+  return (
+    (attack::attack<piece::black_pawn>(square) & board.bitboards[piece::white_pawn]) |
+    (attack::attack<piece::white_pawn>(square) & board.bitboards[piece::black_pawn]) |
+    (attack::attack<piece::knight>(square) & board.bitboards[piece::knight]) |
+    (attack::attack<piece::bishop>(square, board.bitboards[piece::none]) & board.bitboards[piece::bishop]) |
+    (attack::attack<piece::rook>(square, board.bitboards[piece::none]) & board.bitboards[piece::rook]) |
+    (attack::attack<piece::queen>(square, board.bitboards[piece::none]) & board.bitboards[piece::queen]) |
+    (attack::attack<piece::king>(square) & board.bitboards[piece::king])
+  );
+};
+
+// get all the attacks of a color on a square
+template <color_t color>
+bitboard_t attackers(board::Board& board, square_t square) {
+  constexpr color_t opponent = color::compiletime::opponent(color);
+  constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+  constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
+  constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
+  constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
+  constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
+  constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
+  constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
+  return (
+    (attack::attack<opponent_pawn>(square) & board.bitboards[pawn]) |
+    (attack::attack<piece::knight>(square) & board.bitboards[knight]) |
+    (attack::attack<piece::bishop>(square, board.bitboards[piece::none]) & board.bitboards[bishop]) |
+    (attack::attack<piece::rook>(square, board.bitboards[piece::none]) & board.bitboards[rook]) |
+    (attack::attack<piece::queen>(square, board.bitboards[piece::none]) & board.bitboards[queen]) |
+    (attack::attack<piece::king>(square) & board.bitboards[king])
+  );
 };
 };
 

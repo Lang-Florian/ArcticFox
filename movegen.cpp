@@ -54,7 +54,7 @@ struct info_t {
     this->opponent_king_square = get_lsb(board.bitboards[opponent_king]);
     bitboard_t king_bishop_attack = attack::attack<piece::bishop>(this->king_square, board.bitboards[piece::none]);
     bitboard_t king_rook_attack = attack::attack<piece::rook>(this->king_square, board.bitboards[piece::none]);
-    this->checkers = board.attackers<opponent>(this->king_square);
+    this->checkers = attack::attackers<opponent>(board, this->king_square);
     this->checker_square = square::none;
     this->bishop_checking_squares = attack::attack<piece::bishop>(this->opponent_king_square, board.bitboards[color::none]);
     this->rook_checking_squares = attack::attack<piece::rook>(this->opponent_king_square, board.bitboards[color::none]);

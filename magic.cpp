@@ -21,7 +21,7 @@
 
 // generate the incomplete bishop and rook attack rays
 namespace magic::attack::incomplete_ray {
-constexpr std::array<bitboard_t, 64> bishop = {[]() constexpr {
+constexpr std::array<bitboard_t, 64> generate_bishop() {
 	std::array<bitboard_t, 64> bishop{0ULL};
 	for (auto square : square::all) {
 		bishop[square] = 0ULL;
@@ -35,9 +35,10 @@ constexpr std::array<bitboard_t, 64> bishop = {[]() constexpr {
 			bishop[square] |= (bitboard(square) >> (7 * i));
 	};
 	return bishop;
-}()};
+};
+constexpr std::array<bitboard_t, 64> bishop = generate_bishop();
 
-constexpr std::array<bitboard_t, 64> rook = {[]() constexpr {
+constexpr std::array<bitboard_t, 64> generate_rook() {
 	std::array<bitboard_t, 64> rook{0ULL};
 	for (auto square : square::all) {
 		rook[square] = 0ULL;
@@ -51,7 +52,8 @@ constexpr std::array<bitboard_t, 64> rook = {[]() constexpr {
 			rook[square] |= (bitboard(square) << (8 * i));
 	};
 	return rook;
-}()};
+};
+constexpr std::array<bitboard_t, 64> rook = generate_rook();
 };
 
 
@@ -266,7 +268,7 @@ constexpr magic_t rook[64] = {
 };
 
 // generate the magic table from the magics
-constexpr std::array<bitboard_t, 88507> table = {[]() constexpr {
+constexpr std::array<bitboard_t, 88507> generate_table() {
 	std::array<bitboard_t, 88507> table{bitboard::none};
 	for (auto square : square::all) {
 		bitboard_t bishop_ray = attack::incomplete_ray::bishop[square];
@@ -289,7 +291,8 @@ constexpr std::array<bitboard_t, 88507> table = {[]() constexpr {
 		};
 	};
 	return table;
-}()};
+};
+constexpr std::array<bitboard_t, 88507> table = generate_table();
 };
 
 

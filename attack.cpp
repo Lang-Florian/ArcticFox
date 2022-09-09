@@ -20,7 +20,7 @@
 
 // generate the bishop and rook attack rays at compile time
 namespace attack::ray {
-constexpr std::array<bitboard_t, 64> bishop = {[]() constexpr {
+constexpr std::array<bitboard_t, 64> generate_bishop() {
   std::array<bitboard_t, 64> bishop{0ULL};
   for (auto square : square::all) {
     bishop[square] = 0ULL;
@@ -34,9 +34,10 @@ constexpr std::array<bitboard_t, 64> bishop = {[]() constexpr {
       bishop[square] |= (bitboard(square) >> (7 * i));
   };
   return bishop;
-}()};
+};
+constexpr std::array<bitboard_t, 64> bishop = generate_bishop();
 
-constexpr std::array<bitboard_t, 64> rook = {[]() constexpr {
+constexpr std::array<bitboard_t, 64> generate_rook() {
   std::array<bitboard_t, 64> rook{0ULL};
   for (auto square : square::all) {
     rook[square] = 0ULL;
@@ -50,22 +51,24 @@ constexpr std::array<bitboard_t, 64> rook = {[]() constexpr {
       rook[square] |= (bitboard(square) << (8 * i));
   };
   return rook;
-}()};
+};
+constexpr std::array<bitboard_t, 64> rook = generate_rook();
 };
 
 
 // generate the pawn knight and king attack tables at compile time
 namespace attack::table {
-constexpr std::array<std::array<bitboard_t, 2>, 64> pawn = {[]() constexpr {
+constexpr std::array<std::array<bitboard_t, 2>, 64> generate_pawn() {
   std::array<std::array<bitboard_t, 2>, 64> pawn{bitboard::none};
   for (auto square : square::all) {
     pawn[square][color::white] = ((bitboard(square) >> 9) & ~bitboard::file_h) | ((bitboard(square) >> 7) & ~bitboard::file_a);
     pawn[square][color::black] = ((bitboard(square) << 9) & ~bitboard::file_a) | ((bitboard(square) << 7) & ~bitboard::file_h);
   };
   return pawn;
-}()};
+};
+constexpr std::array<std::array<bitboard_t, 2>, 64> pawn = generate_pawn();
 
-constexpr std::array<bitboard_t, 64> knight= {[]() constexpr {
+constexpr std::array<bitboard_t, 64> generate_knight() {
   std::array<bitboard_t, 64> knight{bitboard::none};
   for (auto square : square::all) {
     knight[square] = ((bitboard(square) >>  6) & ~bitboard::file_a & ~bitboard::file_b & ~bitboard::rank_1) |
@@ -78,9 +81,10 @@ constexpr std::array<bitboard_t, 64> knight= {[]() constexpr {
                      ((bitboard(square) << 17) & ~bitboard::file_a & ~bitboard::rank_7 & ~bitboard::rank_8);
   };
   return knight;
-}()};
+};
+constexpr std::array<bitboard_t, 64> knight = generate_knight();
 
-constexpr std::array<bitboard_t, 64> king = {[]() constexpr {
+constexpr std::array<bitboard_t, 64> generate_king() {
   std::array<bitboard_t, 64> king{bitboard::none};
   for (auto square : square::all) {
     king[square] = ((bitboard(square) >> 1) & ~bitboard::file_h) |
@@ -93,7 +97,8 @@ constexpr std::array<bitboard_t, 64> king = {[]() constexpr {
                     ((bitboard(square) << 9) & ~bitboard::file_a & ~bitboard::rank_8);
   };
   return king;
-}()};
+};
+constexpr std::array<bitboard_t, 64> king = generate_king();
 };
 
 

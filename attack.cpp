@@ -142,6 +142,28 @@ bitboard_t attack(square_t square, bitboard_t occupancy=bitboard::none) {
   };
 };
 
+template<color_t color>
+bitboard_t pawns(bitboard_t pawns) {
+  if constexpr (color == color::white) {
+    return ((pawns >> 9) & ~bitboard::file_h) | ((pawns >> 7) & ~bitboard::file_a);
+  } else {
+    return ((pawns << 9) & ~bitboard::file_a) | ((pawns << 7) & ~bitboard::file_h);
+  };
+};
+
+bitboard_t knights(bitboard_t knights) {
+  return (
+    ((knights >>  6) & ~bitboard::file_a & ~bitboard::file_b & ~bitboard::rank_1) |
+    ((knights <<  6) & ~bitboard::file_g & ~bitboard::file_h & ~bitboard::rank_8) |
+    ((knights >> 10) & ~bitboard::file_g & ~bitboard::file_h & ~bitboard::rank_1) |
+    ((knights << 10) & ~bitboard::file_a & ~bitboard::file_b & ~bitboard::rank_8) |
+    ((knights >> 15) & ~bitboard::file_a & ~bitboard::rank_1 & ~bitboard::rank_2) |
+    ((knights << 15) & ~bitboard::file_h & ~bitboard::rank_7 & ~bitboard::rank_8) |
+    ((knights >> 17) & ~bitboard::file_h & ~bitboard::rank_1 & ~bitboard::rank_2) |
+    ((knights << 17) & ~bitboard::file_a & ~bitboard::rank_7 & ~bitboard::rank_8)
+  );
+};
+
 // get all the attacks on a square
 bitboard_t attackers(board::Board& board, square_t square) {
   return (

@@ -170,9 +170,8 @@ bitboard_t attackers(board::Board& board, square_t square) {
     (attack::attack<piece::black_pawn>(square) & board.bitboards[piece::white_pawn]) |
     (attack::attack<piece::white_pawn>(square) & board.bitboards[piece::black_pawn]) |
     (attack::attack<piece::knight>(square) & board.bitboards[piece::knight]) |
-    (attack::attack<piece::bishop>(square, board.bitboards[piece::none]) & board.bitboards[piece::bishop]) |
-    (attack::attack<piece::rook>(square, board.bitboards[piece::none]) & board.bitboards[piece::rook]) |
-    (attack::attack<piece::queen>(square, board.bitboards[piece::none]) & board.bitboards[piece::queen]) |
+    (attack::attack<piece::bishop>(square, board.bitboards[piece::none]) & (board.bitboards[piece::bishop] | board.bitboards[piece::queen])) |
+    (attack::attack<piece::rook>(square, board.bitboards[piece::none]) & (board.bitboards[piece::rook] | board.bitboards[piece::queen])) |
     (attack::attack<piece::king>(square) & board.bitboards[piece::king])
   );
 };
@@ -191,9 +190,8 @@ bitboard_t attackers(board::Board& board, square_t square) {
   return (
     (attack::attack<opponent_pawn>(square) & board.bitboards[pawn]) |
     (attack::attack<piece::knight>(square) & board.bitboards[knight]) |
-    (attack::attack<piece::bishop>(square, board.bitboards[piece::none]) & board.bitboards[bishop]) |
-    (attack::attack<piece::rook>(square, board.bitboards[piece::none]) & board.bitboards[rook]) |
-    (attack::attack<piece::queen>(square, board.bitboards[piece::none]) & board.bitboards[queen]) |
+    (attack::attack<piece::bishop>(square, board.bitboards[piece::none]) & (board.bitboards[bishop] | board.bitboard[queen])) |
+    (attack::attack<piece::rook>(square, board.bitboards[piece::none]) & (board.bitboards[rook] | board.bitboards[queen])) |
     (attack::attack<piece::king>(square) & board.bitboards[king])
   );
 };

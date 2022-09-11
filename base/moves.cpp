@@ -137,4 +137,80 @@ move_t none = (move_t)0;
 };
 
 
+namespace move::compiletime {
+template<piece_t piece>
+constexpr move_t piece_move(square_t from, square_t to, piece_t captured_piece, bool check) {
+  constexpr move_t base = (piece << 12) | (piece << 19);
+  return base | (from << 0) | (to << 6) | (captured_piece << 24) | (check << 31);
+};
+
+template<piece_t piece, bool check>
+constexpr move_t piece_move(square_t from, square_t to, piece_t captured_piece) {
+  constexpr move_t base = (piece << 12) | (piece << 19) | (check << 31);
+  return base | (from << 0) | (to << 6) | (captured_piece << 24);
+};
+
+template<color_t color, bool king_side>
+constexpr move_t castling_move(bool check) {
+  constexpr move_t white_king_side_base = (square::e1 << 0) | (square::g1 << 6) | (piece::white_king << 12) | (piece::white_king << 19) | (1 << 30);
+  constexpr move_t white_queen_side_base = (square::e1 << 0) | (square::c1 << 6) | (piece::white_king << 12) | (piece::white_king << 19) | (1 << 30);
+  constexpr move_t black_king_side_base = (square::e8 << 0) | (square::g8 << 6) | (piece::black_king << 12) | (piece::black_king << 19) | (1 << 30);
+  constexpr move_t black_queen_side_base = (square::e8 << 0) | (square::c8 << 6) | (piece::black_king << 12) | (piece::black_king << 19) | (1 << 30);
+  if constexpr (color == color::white) {
+    if constexpr (king_side) {
+      return white_king_side_base | (check << 31);
+    } else {
+      return white_queen_side_base | (check << 31);
+    };
+  } else {
+    if constexpr (king_side) {
+      return black_king_side_base | (check << 31);
+    } else {
+      return black_queen_side_base | (check << 31);
+    };
+  };
+};
+
+template<piece_t piece>
+constexpr move_t capture_promotion_move(square_t from, square_t to, piece_t captured_piece, bool check) {
+  constexpr color_t color = piece::compiletime::color(piece);
+  constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+  constexpr move_t base = (piece << 12) | (pawn << 19) | (1 << 29);
+  return base | (from << 0) | (to << 6) | (captured_piece << 24) | (check << 31);
+};
+
+template<piece_t piece, bool check>
+constexpr move_t capture_promotion_move(square_t from, square_t to, piece_t captured_piece) {
+  constexpr color_t color = piece::compiletime::color(piece);
+  constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+  constexpr move_t base = (piece << 12) | (pawn << 19) | (1 << 29) | (check << 31);
+  return base | (from << 0) | (to << 6) | (captured_piece << 24);
+};
+
+template<piece_t piece>
+constexpr move_t push_promotion_move(square_t from, square_t to, bool check) {
+  constexpr color_t color = piece::compiletime::color(piece);
+  constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+  constexpr move_t base = (piece << 12) | (pawn << 19) | (piece::none << 24) | (1 << 29);
+  return base | (from << 0) | (to << 6) | (check << 31);
+};
+
+template<color_t color, bool double_pawn_push>
+constexpr move_t push_move(square_t from, square_t to, bool check) {
+  constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+  constexpr move_t base = (pawn << 12) | (pawn << 19) | (piece::none << 24) | (double_pawn_push << 17);
+  return base | (from << 0) | (to << 6) | (check << 31);
+};
+
+template<color_t color>
+constexpr move_t enpassant_move(square_t from, square_t to, bool check) {
+  constexpr color_t opponent = color::compiletime::opponent(color);
+  constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+  constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
+  constexpr move_t base = (pawn << 12) | (pawn << 19) | (opponent_pawn << 24) | (1 << 18);
+  return base | (from << 0) | (to << 6) | (check << 31);
+};
+};
+
+
 #endif

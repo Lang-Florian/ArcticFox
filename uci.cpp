@@ -76,7 +76,7 @@ void test(board::Board& board, std::istringstream& string_stream) {
 };
 
 // uci main loop
-void uci() {
+void loop() {
   std::cout << ENGINE_NAME << " v" << VERSION << " by " << AUTHOR << "\n";
   board::Board board;
   std::string token, command;

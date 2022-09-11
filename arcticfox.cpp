@@ -26,6 +26,6 @@ int main(int argc, char *argv[]) {
       return 1;
     }
   }
-  uci::uci();
+  uci::loop();
   return 0;
 };

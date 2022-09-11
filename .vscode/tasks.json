@@ -18,6 +18,7 @@
         "-fno-signed-zeros",
         "-funroll-loops",
         "-mcmodel=medium",
+        "-pthread",
       ],
       "options": {
         "cwd": "${fileDirname}"

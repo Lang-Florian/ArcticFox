@@ -127,6 +127,10 @@ namespace piece::compiletime {
 constexpr piece_t to_color(piece_t piece, color_t color) {
   return (piece & 0b11100) | color;
 };
+
+constexpr color_t color(piece_t piece) {
+  return piece & 0b11;
+};
 };
 
 

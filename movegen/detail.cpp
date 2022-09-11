@@ -29,15 +29,15 @@ struct detail_t {
 
   bitboard_t attacked_squares;
   bitboard_t unsafe_king_squares;
-  
+
+  bitboard_t bishop_discoverable;
+  bitboard_t rook_discoverable;
+
   bitboard_t evasion_targets;
 
   bitboard_t bishop_pinned;
   bitboard_t rook_pinned;
   bitboard_t enpassant_pinned;
-  
-  bitboard_t bishop_discoverable;
-  bitboard_t rook_discoverable;
 
   template<color_t color>
   void update(board::Board& board) {
@@ -84,6 +84,19 @@ struct detail_t {
     this->attacked_squares |= attack::attack<piece::king>(this->opponent_king_square);
     this->unsafe_king_squares |= attack::attack<piece::king>(this->opponent_king_square);
 
+    this->bishop_discoverable = bitboard::none;
+    bitboard_t bishop_attackers = (board.bitboards[bishop] | board.bitboards[queen]) & attack::ray::bishop[this->opponent_king_square];
+    while (bishop_attackers) {
+      square_t square = pop_lsb(bishop_attackers);
+      this->bishop_discoverable |= attack::attack<bishop>(square, board.bitboards[color::none]) & this->bishop_checking_squares;
+    };
+    this->rook_discoverable = bitboard::none;
+    bitboard_t rook_attackers = (board.bitboards[rook] | board.bitboards[queen]) & attack::ray::rook[this->opponent_king_square];
+    while (rook_attackers) {
+      square_t square = pop_lsb(rook_attackers);
+      this->rook_discoverable |= attack::attack<rook>(square, board.bitboards[color::none]) & this->rook_checking_squares;
+    };
+
     this->evasion_targets = bitboard::full;
     if (popcount(this->checkers) > 1) {
       return;
@@ -110,7 +123,7 @@ struct detail_t {
     };
 
     this->bishop_pinned = bitboard::none;
-    bitboard_t bishop_attackers = (board.bitboards[opponent_bishop] | board.bitboards[opponent_queen]) & attack::ray::bishop[this->king_square];
+    bishop_attackers = (board.bitboards[opponent_bishop] | board.bitboards[opponent_queen]) & attack::ray::bishop[this->king_square];
     while (bishop_attackers) {
       square_t square = pop_lsb(bishop_attackers);
       this->bishop_pinned |= attack::attack<piece::bishop>(square, board.bitboards[color::none]) & king_bishop_attack;
@@ -125,7 +138,7 @@ struct detail_t {
       this->enpassant_pinned = attack::pawns<opponent>(opponent_pawn_to_capture & this->bishop_pinned) << 8;
     };
     this->rook_pinned = bitboard::none;
-    bitboard_t rook_attackers = (board.bitboards[opponent_rook] | board.bitboards[opponent_queen]) & attack::ray::rook[this->king_square];
+    rook_attackers = (board.bitboards[opponent_rook] | board.bitboards[opponent_queen]) & attack::ray::rook[this->king_square];
     while (rook_attackers) {
       square_t square = pop_lsb(rook_attackers);
       this->rook_pinned |= attack::attack<piece::rook>(square, board.bitboards[color::none]) & king_rook_attack;
@@ -133,19 +146,6 @@ struct detail_t {
         attack::attack<piece::rook>(square, board.bitboards[color::none] & ~opponent_pawn_to_capture) &
         attack::attack<piece::rook>(this->king_square, board.bitboards[color::none] & ~opponent_pawn_to_capture)
       );
-    };
-
-    this->bishop_discoverable = bitboard::none;
-    bishop_attackers = (board.bitboards[bishop] | board.bitboards[queen]) & attack::ray::bishop[this->opponent_king_square];
-    while (bishop_attackers) {
-      square_t square = pop_lsb(bishop_attackers);
-      this->bishop_discoverable |= attack::attack<bishop>(square, board.bitboards[color::none]) & this->bishop_checking_squares;
-    };
-    this->rook_discoverable = bitboard::none;
-    rook_attackers = (board.bitboards[rook] | board.bitboards[queen]) & attack::ray::rook[this->opponent_king_square];
-    while (rook_attackers) {
-      square_t square = pop_lsb(rook_attackers);
-      this->rook_discoverable |= attack::attack<rook>(square, board.bitboards[color::none]) & this->rook_checking_squares;
     };
   };
 };

@@ -12,7 +12,6 @@
 #include "macros.cpp"
 #include "moves.cpp"
 #include "movetype.cpp"
-#include "outcome.cpp"
 #include "piece.cpp"
 #include "square.cpp"
 #include "types.cpp"

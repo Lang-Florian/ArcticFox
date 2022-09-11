@@ -31,7 +31,7 @@ void generate_pawn_push_moves(T& moves, board::Board& board, detail_t& detail) {
   bitboard_t rook_pinned_pawns = board.bitboards[pawn] & ~detail.bishop_pinned & detail.rook_pinned;
   bitboard_t pawn_checking_squares = attack::attack<opponent_pawn>(detail.opponent_king_square);
   bitboard_t knight_checking_squares = attack::attack<knight>(detail.opponent_king_square);
-  bitboard_t rook_checking_squares = attack::attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~board.bitboards[pawn]);
+  bitboard_t rook_checking_squares_no_pawns = attack::attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~board.bitboards[pawn]);
 
   bitboard_t non_discoverable_targets = bitboard::none;
   bitboard_t non_discoverable_knight_promoting_targets = bitboard::none;
@@ -43,15 +43,15 @@ void generate_pawn_push_moves(T& moves, board::Board& board, detail_t& detail) {
     non_discoverable_targets |= ~pawn_checking_squares;
     non_discoverable_knight_promoting_targets |= ~knight_checking_squares;
     non_discoverable_bishop_promoting_targets |= ~detail.bishop_checking_squares;
-    non_discoverable_rook_promoting_targets |= ~rook_checking_squares;
-    non_discoverable_queen_promoting_targets |= ~(detail.bishop_checking_squares | rook_checking_squares);
+    non_discoverable_rook_promoting_targets |= ~rook_checking_squares_no_pawns;
+    non_discoverable_queen_promoting_targets |= ~(detail.bishop_checking_squares | rook_checking_squares_no_pawns);
   };
   if constexpr (movetype & movetype::check) {
     non_discoverable_targets |= pawn_checking_squares;
     non_discoverable_knight_promoting_targets |= knight_checking_squares;
     non_discoverable_bishop_promoting_targets |= detail.bishop_checking_squares;
-    non_discoverable_rook_promoting_targets |= rook_checking_squares;
-    non_discoverable_queen_promoting_targets |= (detail.bishop_checking_squares | rook_checking_squares);
+    non_discoverable_rook_promoting_targets |= rook_checking_squares_no_pawns;
+    non_discoverable_queen_promoting_targets |= (detail.bishop_checking_squares | rook_checking_squares_no_pawns);
     discoverable_targets |= bitboard::full;
   };
   non_discoverable_targets &= detail.evasion_targets;
@@ -176,12 +176,28 @@ void generate_pawn_push_moves(T& moves, board::Board& board, detail_t& detail) {
     while (rook_promoting_pawns) {
       square_t from = pop_lsb(rook_promoting_pawns);
       square_t to = from + push_offset;
-      moves.push(move::compiletime::push_promotion_move<rook>(from, to, (bitboard(from) & discoverable) || (bitboard(to) & rook_checking_squares)));
+      bitboard_t rook_checking_squares =  attack::attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~bitboard(from));
+      bool is_check = (bitboard(from) & discoverable) || (bitboard(to) & rook_checking_squares);
+      if constexpr (movetype == movetype::check) {
+        if (is_check) {
+          moves.push(move::compiletime::push_promotion_move<rook>(from, to, is_check));
+        };
+      } else {
+        moves.push(move::compiletime::push_promotion_move<rook>(from, to, is_check));
+      };
     };
     while (queen_promoting_pawns) {
       square_t from = pop_lsb(queen_promoting_pawns);
       square_t to = from + push_offset;
-      moves.push(move::compiletime::push_promotion_move<queen>(from, to, (bitboard(from) & discoverable) || (bitboard(to) & (detail.bishop_checking_squares | rook_checking_squares))));
+      bitboard_t queen_checking_squares = detail.bishop_checking_squares | attack::attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~bitboard(from));
+      bool is_check = (bitboard(from) & discoverable) || (bitboard(to) & queen_checking_squares);
+      if constexpr (movetype == movetype::check) {
+        if (is_check) {
+          moves.push(move::compiletime::push_promotion_move<queen>(from, to, is_check));
+        };
+      } else {
+        moves.push(move::compiletime::push_promotion_move<queen>(from, to, is_check));
+      };
     };
   } else {
     moves += popcount(pushable_pawns);

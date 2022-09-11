@@ -30,6 +30,8 @@
 
 
 namespace move {
+move_t null = (move_t)0;
+
 move_t move(square_t from,
             square_t to,
             piece_t moved_piece,
@@ -97,6 +99,7 @@ bool capture(move_t move) {
 };
 
 std::string to_string(move_t move) {
+  if (move == null) return "0000";
   return (
     square::to_string(from(move)) +
     square::to_string(to(move)) +
@@ -132,8 +135,6 @@ struct {
     return move::mvv_lva_key(move1) < move::mvv_lva_key(move2);
   };
 } reverse_comparison;
-
-move_t none = (move_t)0;
 };
 
 

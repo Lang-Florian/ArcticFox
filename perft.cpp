@@ -32,18 +32,18 @@ u64_t perft(board::Board& board, int depth) {
   if (depth == 0) return 1;
   if (depth == 1) return movegen::generate<color, movetype, u64_t>(board);
   if (depth == 2) {
-    move_stack_t moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
+    move_stack_t legal_moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
     u64_t nodes = 0;
-    for (move_t move : moves) {
+    for (move_t move : legal_moves) {
       board.make<color>(move);
       nodes += movegen::generate<opponent, movetype, u64_t>(board);
       board.unmake<color>();
     };
     return nodes;
   };
-  move_stack_t moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
+  move_stack_t legal_moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
   u64_t nodes = 0;
-  for (move_t move : moves) {
+  for (move_t move : legal_moves) {
     board.make<color>(move);
     nodes += perft<opponent, movetype>(board, depth - 1);
     board.unmake<color>();
@@ -56,12 +56,16 @@ perft_result_t perft(board::Board& board, int depth, bool print) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   u64_t start_time = timing::nanoseconds();
   u64_t nodes = 0;
-  move_stack_t moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
-  for (move_t move : moves) {
-    board.make<color>(move);
-    u64_t local_nodes = perft<opponent, movetype>(board, depth - 1);
+  move_stack_t legal_moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
+  move_stack_t moves = movegen::generate<color, movetype, move_stack_t>(board);
+  for (move_t move : legal_moves) {
+    u64_t local_nodes = 0;
+    if (moves.contains(move) || depth != 1) {
+      board.make<color>(move);
+      local_nodes = perft<opponent, movetype>(board, depth - 1);
+      board.unmake<color>();
+    };
     nodes += local_nodes;
-    board.unmake<color>();
     if (print) {
       std::cout << move::to_string(move) << ": " << local_nodes << "\n";
     };

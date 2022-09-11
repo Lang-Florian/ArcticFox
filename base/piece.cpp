@@ -51,7 +51,7 @@ constexpr piece_t black_all[6] = {
   black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king,
 };
 
-constexpr std::array<piece_t, 6> all_pieces_by_color[3] = {
+constexpr std::array<piece_t, 6> all_by_color[3] = {
   {
     white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king,
   },

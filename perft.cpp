@@ -9,7 +9,7 @@
 #include "base/base.cpp"
 #include "modules/timing.cpp"
 #include "board.cpp"
-#include "movegen.cpp"
+#include "movegen/movegen.cpp"
 
 
 /*

@@ -32,6 +32,7 @@ class Board {
 public:
   std::array<bitboard_t, 32> bitboards;
   std::array<piece_t, 64> pieces;
+  std::array<u8_t, 32> piece_counts;
   color_t turn;
   castling_t castling;
   square_t enpassant;
@@ -53,6 +54,7 @@ public:
     // clear all
     this->bitboards.fill(bitboard::none);
     this->pieces.fill(piece::none);
+    this->piece_counts.fill(0);
     this->zobrist.clear();
     this->history.clear();
     
@@ -161,6 +163,10 @@ public:
     set_bit(this->bitboards[color], square);
     set_bit(this->bitboards[piece::none], square);
     this->pieces[square] = piece;
+    this->piece_counts[piece]++;
+    this->piece_counts[piece::type(piece)]++;
+    this->piece_counts[color]++;
+    this->piece_counts[piece::none]++;
     this->zobrist.update_piece(piece, square);
   };
 
@@ -181,6 +187,10 @@ public:
     clear_bit(this->bitboards[color], square);
     clear_bit(this->bitboards[piece::none], square);
     this->pieces[square] = piece::none;
+    this->piece_counts[piece]--;
+    this->piece_counts[piece::type(piece)]--;
+    this->piece_counts[color]--;
+    this->piece_counts[piece::none]--;
     this->zobrist.update_piece(piece, square);
   };
 
@@ -317,7 +327,9 @@ public:
 
   // check if a position already exists in the history
   bool position_existed() {
-    return this->history.count([this](undo_t undo) {return undo.hash == this->zobrist.hash;});
+    return this->history.count([this](undo_t undo) {
+      return undo.hash == this->zobrist.hash;
+    });
   };
 };
 };

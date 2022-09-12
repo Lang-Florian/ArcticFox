@@ -195,6 +195,32 @@ bitboard_t attackers(board::Board& board, square_t square) {
     (attack::attack<piece::king>(square) & board.bitboards[king])
   );
 };
+
+// get all attacks of a color
+template<color_t color>
+bitboard_t attacks(board::Board& board) {
+  constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
+  constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
+  constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
+  constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
+  constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
+  constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
+  bitboard_t attacked_squares = pawns<color>(board.bitboards[pawn]);
+  attacked_squares |= knights(board.bitboards[knight]);
+  bitboard_t bishop_movers = board.bitboards[bishop] | board.bitboards[queen];
+  while (bishop_movers) {
+    square_t square = pop_lsb(bishop_movers);
+    attacked_squares |= attack<piece::bishop>(square, board.bitboards[piece::none]);
+  };
+  bitboard_t rook_movers = board.bitboards[rook] | board.bitboards[queen];
+  while (rook_movers) {
+    square_t square = pop_lsb(rook_movers);
+    attacked_squares |= attack<piece::rook>(square, board.bitboards[piece::none]);
+  };
+  square_t king_square = get_lsb(board.bitboards[king]);
+  attacked_squares |= attack<piece::king>(king_square);
+  return attacked_squares;
+};
 };
 
 

@@ -12,6 +12,8 @@
 #include "board.cpp"
 #include "debug.cpp"
 #include "perft.cpp"
+#include "search.cpp"
+#include "transposition.cpp"
 
 
 /*
@@ -25,23 +27,29 @@ namespace uci {
 // uci go command
 void go(board::Board& board, std::istringstream& string_stream) {
   std::string token;
-  string_stream >> token;
-  if (token == "perft") {
-    int depth;
-    std::string movetype;
-    string_stream >> depth;
-    string_stream >> movetype;
-    if (movetype == "quiet") {
-      perft::perft<movetype::quiet>(board, depth, true);
-    } else if (movetype == "check") {
-      perft::perft<movetype::check>(board, depth, true);
-    } else if (movetype == "capture") {
-      perft::perft<movetype::capture>(board, depth, true);
-    } else {
-      perft::perft<movetype::legal>(board, depth, true);
+  int depth = 6;
+  while (string_stream >> token) {
+    if (token == "perft") {
+      int depth;
+      std::string movetype;
+      string_stream >> depth;
+      string_stream >> movetype;
+      if (movetype == "quiet") {
+        perft::perft<movetype::quiet>(board, depth, true);
+      } else if (movetype == "check") {
+        perft::perft<movetype::check>(board, depth, true);
+      } else if (movetype == "capture") {
+        perft::perft<movetype::capture>(board, depth, true);
+      } else {
+        perft::perft<movetype::legal>(board, depth, true);
+      };
+      return;
+    } else if (token == "depth") {
+      string_stream >> depth;
     };
-    return;
   };
+  search::search_result_t search_result = search::search(board, depth);
+  std::cout << "bestmove " << move::to_string(search_result.pv[0]) << "\n";
 };
 
 // uci position command
@@ -78,6 +86,7 @@ void test(board::Board& board, std::istringstream& string_stream) {
 // uci main loop
 void loop() {
   std::cout << ENGINE_NAME << " v" << VERSION << " by " << AUTHOR << "\n";
+  std::cout << "info string transposition table size " << (transposition::table_size() >> 30) << "GiB\n";
   board::Board board;
   std::string token, command;
   do {
@@ -87,6 +96,7 @@ void loop() {
     string_stream >> std::skipws >> token;
     if (token == "uci") {
       std::cout << "id name " << ENGINE_NAME
+                << " v" << VERSION
                 << "\nid author " << AUTHOR
                 << "\nuciok\n";
     } else if (token == "isready") {

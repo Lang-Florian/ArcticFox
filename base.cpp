@@ -13,7 +13,6 @@
 #define MAX_MOVE_GENERATION_SIZE 512
 #define MAX_PV_DEPTH 32
 #define MAX_QSEARCH_DEPTH 32
-#define TRANSPOSITION_TABLE_SIZE_LOG2 30
 #define ASCII_ART "                        ▒  ▒▒▒                              \n"\
                   "                       ▒▒▒▒▓▓█▓▒▒▒                          \n"\
                   "                       ▒▓▒▒▒▒▓▓▓▒▒▒                         \n"\

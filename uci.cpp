@@ -27,7 +27,7 @@ namespace uci {
 // uci go command
 void go(board::Board& board, std::istringstream& string_stream) {
   std::string token;
-  int depth = 6;
+  int depth = 8;
   while (string_stream >> token) {
     if (token == "perft") {
       int depth;
@@ -86,7 +86,7 @@ void test(board::Board& board, std::istringstream& string_stream) {
 // uci main loop
 void loop() {
   std::cout << ENGINE_NAME << " v" << VERSION << " by " << AUTHOR << "\n";
-  std::cout << "info string transposition table size " << (transposition::table_size() >> 30) << "GiB\n";
+  std::cout << "info string transposition table size " << (table_size() >> 30) << "GiB\n";
   board::Board board;
   std::string token, command;
   do {

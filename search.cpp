@@ -71,18 +71,18 @@ search_result_t search(board::Board board, int depth, score_t alpha, score_t bet
   };
   pv_t pv {};
 
-  transposition::entry_t& entry = transposition::get(board.zobrist.hash);
+  entry_t& entry = get(board.zobrist.hash);
   if (entry.is_valid(board.zobrist.hash, depth)) {
     tbhits++;
     u8_t bound = entry.get_bound();
     score_t entry_score = entry.get_score();
-    if (bound == transposition::exact_bound) {
+    if (bound == exact_bound) {
       pv.push(entry.move);
       nodes++;
       return search_result_t {pv, entry_score};
-    } else if (bound == transposition::upper_bound && beta > entry_score) {
+    } else if (bound == upper_bound && beta > entry_score) {
       beta = entry_score;
-    } else if (bound == transposition::lower_bound && alpha < entry_score) {
+    } else if (bound == lower_bound && alpha < entry_score) {
       alpha = entry_score;
     };
     if (alpha >= beta) {
@@ -106,7 +106,7 @@ search_result_t search(board::Board board, int depth, score_t alpha, score_t bet
   };
   legal_moves.reverse();
 
-  u8_t bound = transposition::upper_bound;
+  u8_t bound = upper_bound;
   for (move_t move : legal_moves) {
     board.make<color>(move);
     search_result_t search_result = search<opponent>(board, depth - 1, evaluation::remove_depth(beta), evaluation::remove_depth(alpha), old_pv, tbhits, nodes);
@@ -116,11 +116,11 @@ search_result_t search(board::Board board, int depth, score_t alpha, score_t bet
       pv = search_result.pv.copy();
       pv.push(move);
       if (search_result.score >= beta) {
-        entry.set(board.zobrist.hash, move, search_result.score, depth, transposition::lower_bound);
+        entry.set(board.zobrist.hash, move, search_result.score, depth, lower_bound);
         return search_result_t {pv, beta};
       };
       alpha = search_result.score;
-      bound = transposition::exact_bound;
+      bound = exact_bound;
     };
   };
   entry.set(board.zobrist.hash, pv[0], alpha, depth, bound);

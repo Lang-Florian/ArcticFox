@@ -7,7 +7,7 @@
 
 #include <array>
 #include "base.cpp"
-#include "modules/randomness.cpp"
+#include "modules/random.cpp"
 
 
 /*
@@ -32,16 +32,16 @@ public:
   Hash() {
     for (auto square : square::all) {
       for (auto piece : piece::all) {
-        this->piece_hash[piece][square] = randomness::generate<hash_t>();
+        this->piece_hash[piece][square] = random<hash_t>();
       };
     };
     for (castling_t castling = 0; castling < 16; castling++) {
-      this->castling_hash[castling] = randomness::generate<hash_t>();
+      this->castling_hash[castling] = random<hash_t>();
     };
     for (auto square : square::all) {
-      this->enpassant_hash[square] = randomness::generate<hash_t>();
+      this->enpassant_hash[square] = random<hash_t>();
     };
-    this->turn_hash = randomness::generate<hash_t>();
+    this->turn_hash = random<hash_t>();
   };
 
   // update the hash with a piece change

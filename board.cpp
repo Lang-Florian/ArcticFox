@@ -38,7 +38,7 @@ public:
   square_t enpassant;
   u16_t halfmove_clock;
   u16_t fullmove_clock;
-  zobrist::Hash zobrist;
+  Zobrist zobrist;
   stack::Stack<undo_t, MAX_GAME_LENGTH> history;
   std::string starting_fen;
 

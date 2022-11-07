@@ -1,24 +1,10 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __ZOBRIST__MODULE__
-#define __ZOBRIST__MODULE__
-
+#pragma once
 
 #include <array>
-#include "base.cpp"
 #include "modules/random.cpp"
+#include "base.cpp"
 
-
-/*
-
-  Module for zobrist hashing.
-
-*/
-
-
-namespace zobrist {
-class Hash {
+class Zobrist {
 private:
   std::array<std::array<hash_t, 64>, 32> piece_hash{0ULL};
   std::array<hash_t, 16> castling_hash{0ULL};
@@ -29,7 +15,7 @@ public:
   hash_t hash;
 
   // initialize the tables with random values
-  Hash() {
+  Zobrist() {
     for (auto square : square::all) {
       for (auto piece : piece::all) {
         this->piece_hash[piece][square] = random<hash_t>();
@@ -74,7 +60,3 @@ public:
     this->hash = hash;
   };
 };
-};
-
-
-#endif

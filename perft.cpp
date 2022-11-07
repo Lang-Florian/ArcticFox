@@ -7,7 +7,7 @@
 
 #include <iostream>
 #include "base.cpp"
-#include "modules/timing.cpp"
+#include "modules/time.cpp"
 #include "board.cpp"
 #include "movegen/movegen.cpp"
 
@@ -54,7 +54,7 @@ u64_t perft(board::Board& board, int depth) {
 template<color_t color, movetype_t movetype>
 perft_result_t perft(board::Board& board, int depth, bool print) {
   constexpr color_t opponent = color::compiletime::opponent(color);
-  u64_t start_time = timing::nanoseconds();
+  u64_t start_time = nanoseconds();
   u64_t nodes = 0;
   move_stack_t legal_moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
   move_stack_t moves = movegen::generate<color, movetype, move_stack_t>(board);
@@ -70,7 +70,7 @@ perft_result_t perft(board::Board& board, int depth, bool print) {
       std::cout << move::to_string(move) << ": " << local_nodes << "\n";
     };
   };
-  u64_t end_time = timing::nanoseconds();
+  u64_t end_time = nanoseconds();
   float time = (float)(end_time - start_time) * 1e-9;
   float mnps = (nodes / time) * 1e-6;
   if (print) {

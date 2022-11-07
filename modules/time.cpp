@@ -1,14 +1,7 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __TIMING__MODULE__
-#define __TIMING__MODULE__
-
+#pragma once
 
 #include <chrono>
 
-
-namespace timing {
 unsigned long long nanoseconds() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
     std::chrono::system_clock::now().time_since_epoch()
@@ -38,7 +31,3 @@ unsigned long long minutes() {
     std::chrono::system_clock::now().time_since_epoch()
   ).count();
 };
-};
-
-
-#endif

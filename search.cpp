@@ -9,7 +9,7 @@
 #include <ranges>
 #include <string>
 #include "base.cpp"
-#include "modules/timing.cpp"
+#include "modules/time.cpp"
 #include "board.cpp"
 #include "evaluation.cpp"
 #include "transposition.cpp"
@@ -133,14 +133,14 @@ search_result_t search (board::Board& board, int depth) {
   for (int i = 1; i <= depth; i++) {
     u64_t tbhits = 0;
     u64_t nodes = 0;
-    u64_t start_time = timing::milliseconds();
+    u64_t start_time = milliseconds();
     if (board.turn == color::white) {
       search_result = search<color::white>(board, i, -evaluation::inf, evaluation::inf, pv, tbhits, nodes);
     } else {
       search_result = search<color::black>(board, i, -evaluation::inf, evaluation::inf, pv, tbhits, nodes);
       search_result.score = -search_result.score;
     };
-    u64_t end_time = timing::milliseconds();
+    u64_t end_time = milliseconds();
     pv = search_result.pv.copy();
     search_result.pv.reverse();
     u64_t nps = nodes / ((end_time - start_time) / 1000.0);

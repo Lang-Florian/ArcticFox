@@ -6,7 +6,7 @@
 
 
 #include <string>
-#include "base/base.cpp"
+#include "base.cpp"
 #include "board.cpp"
 #include "movegen/movegen.cpp"
 

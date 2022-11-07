@@ -6,7 +6,7 @@
 
 
 #include <type_traits>
-#include "../base/base.cpp"
+#include "../base.cpp"
 #include "../attack.cpp"
 #include "../board.cpp"
 #include "detail.cpp"

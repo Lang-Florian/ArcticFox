@@ -8,7 +8,7 @@
 #include <iostream>
 #include <ranges>
 #include <string>
-#include "base/base.cpp"
+#include "base.cpp"
 #include "modules/timing.cpp"
 #include "board.cpp"
 #include "evaluation.cpp"

@@ -8,7 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include "base/base.cpp"
+#include "base.cpp"
 #include "board.cpp"
 #include "debug.cpp"
 #include "perft.cpp"

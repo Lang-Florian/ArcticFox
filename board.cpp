@@ -7,7 +7,7 @@
 
 #include <array>
 #include <string>
-#include "base/base.cpp"
+#include "base.cpp"
 #include "modules/stack.cpp"
 #include "zobrist.cpp"
 

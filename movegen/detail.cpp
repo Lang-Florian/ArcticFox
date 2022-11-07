@@ -5,7 +5,7 @@
 #define __DETAIL__MODULE__
 
 
-#include "../base/base.cpp"
+#include "../base.cpp"
 #include "../attack.cpp"
 #include "../board.cpp"
 

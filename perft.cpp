@@ -6,7 +6,7 @@
 
 
 #include <iostream>
-#include "base/base.cpp"
+#include "base.cpp"
 #include "modules/timing.cpp"
 #include "board.cpp"
 #include "movegen/movegen.cpp"

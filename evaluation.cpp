@@ -1,15 +1,9 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __EVALUATION__MODULE__
-#define __EVALUATION__MODULE__
-
+#pragma once
 
 #include <string>
 #include "base.cpp"
 #include "board.cpp"
 #include "movegen/movegen.cpp"
-
 
 /*
 
@@ -17,8 +11,6 @@
 
 */
 
-
-namespace evaluation {
 enum : score_t {
   inf =       32767,
   checkmate = 30000,
@@ -169,8 +161,8 @@ score_t value(square_t square, u8_t endgame_factor=0) {
 };
 
 constexpr score_t (*(value_jump_table[32]))(square_t, u8_t) = {
-  value<0>, value<1>, value<2>, value<3>, value<4>, value<5>, value<6>, value<7>,
-  value<8>, value<9>, value<10>, value<11>, value<12>, value<13>, value<14>, value<15>,
+  value< 0>, value< 1>, value< 2>, value< 3>, value< 4>, value< 5>, value< 6>, value< 7>,
+  value< 8>, value< 9>, value<10>, value<11>, value<12>, value<13>, value<14>, value<15>,
   value<16>, value<17>, value<18>, value<19>, value<20>, value<21>, value<22>, value<23>,
   value<24>, value<25>, value<26>, value<27>, value<28>, value<29>, value<30>, value<31>,
 };
@@ -248,7 +240,3 @@ score_t evaluate(board::Board& board) {
 
   return score;
 };
-};
-
-
-#endif

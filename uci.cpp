@@ -17,7 +17,7 @@
 */
 
 // uci go command
-void go(board::Board& board, std::istringstream& string_stream) {
+void go(Board& board, std::istringstream& string_stream) {
   std::string token;
   int depth = 8;
   while (string_stream >> token) {
@@ -45,7 +45,7 @@ void go(board::Board& board, std::istringstream& string_stream) {
 };
 
 // uci position command
-void position(board::Board& board, std::istringstream& string_stream) {
+void position(Board& board, std::istringstream& string_stream) {
   std::string token;
   string_stream >> token;
   if (token == "startpos") {
@@ -65,7 +65,7 @@ void position(board::Board& board, std::istringstream& string_stream) {
 };
 
 // uci test command
-void test(board::Board& board, std::istringstream& string_stream) {
+void test(Board& board, std::istringstream& string_stream) {
   std::string token;
   string_stream >> token;
   if (token == "perft") {
@@ -79,7 +79,7 @@ void test(board::Board& board, std::istringstream& string_stream) {
 void loop() {
   std::cout << ENGINE_NAME << " v" << VERSION << " by " << AUTHOR << "\n";
   std::cout << "info string transposition table size " << (table_size() >> 30) << "GiB\n";
-  board::Board board;
+  Board board;
   std::string token, command;
   do {
     getline(std::cin, command);

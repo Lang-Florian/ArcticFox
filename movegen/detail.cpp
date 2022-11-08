@@ -40,7 +40,7 @@ struct detail_t {
   bitboard_t enpassant_pinned;
 
   template<color_t color>
-  void update(board::Board& board) {
+  void update(Board& board) {
     constexpr color_t opponent = color::compiletime::opponent(color);
     constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
     constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);

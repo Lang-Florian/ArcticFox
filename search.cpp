@@ -21,7 +21,7 @@ struct search_result_t {
 };
 
 template <color_t color>
-score_t q_search(board::Board& board, int depth, score_t alpha, score_t beta, u64_t& nodes) {
+score_t q_search(Board& board, int depth, score_t alpha, score_t beta, u64_t& nodes) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   if (depth == 0) {
     nodes++;
@@ -52,7 +52,7 @@ score_t q_search(board::Board& board, int depth, score_t alpha, score_t beta, u6
 };
 
 template <color_t color>
-search_result_t search(board::Board board, int depth, score_t alpha, score_t beta, pv_t old_pv, u64_t& tbhits, u64_t& nodes) {
+search_result_t search(Board board, int depth, score_t alpha, score_t beta, pv_t old_pv, u64_t& tbhits, u64_t& nodes) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   if (depth == 0) {
     return search_result_t {pv_t {}, q_search<color>(board, MAX_QSEARCH_DEPTH, alpha, beta, nodes)};
@@ -119,7 +119,7 @@ search_result_t search(board::Board board, int depth, score_t alpha, score_t bet
   return search_result_t {pv, alpha};
 };
 
-search_result_t search(board::Board& board, int depth) {
+search_result_t search(Board& board, int depth) {
   search_result_t search_result;
   pv_t pv {};
   for (int i = 1; i <= depth; i++) {

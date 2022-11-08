@@ -13,7 +13,7 @@
 
 */
 
-void print_board(board::Board& board) {
+void print_board(Board& board) {
   std::cout << " +---+---+---+---+---+---+---+---+\n";
   for (int rank = 7; rank >= 0; rank--) {
     for (int file = 0; file < 8; file++) {
@@ -26,7 +26,7 @@ void print_board(board::Board& board) {
   std::cout << "Fen: " << board.fen() << "\n";
 };
 
-void perft_test_suite(board::Board& board, std::string epd_file_path) {
+void perft_test_suite(Board& board, std::string epd_file_path) {
   std::string original_fen = board.fen();
   std::ifstream edp_file(epd_file_path);
   if (!edp_file.is_open()) {

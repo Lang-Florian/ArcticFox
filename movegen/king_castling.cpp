@@ -14,7 +14,7 @@
 
 // generate king castling moves
 template <color_t color, movetype_t movetype, typename T>
-void generate_king_castling_moves(T& moves, board::Board& board, detail_t& detail) {
+void generate_king_castling_moves(T& moves, Board& board, detail_t& detail) {
   if constexpr (color == color::white) {
     bool castle_king = (
       !(detail.attacked_squares & castling::white_king_attack_mask) &&

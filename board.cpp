@@ -1,9 +1,4 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __BOARD__MODULE__
-#define __BOARD__MODULE__
-
+#pragma once
 
 #include <array>
 #include <string>
@@ -11,15 +6,12 @@
 #include "modules/stack.cpp"
 #include "zobrist.cpp"
 
-
 /*
 
   Module for the board.
 
 */
 
-
-namespace board {
 struct undo_t {
   move_t move;
   castling_t castling;
@@ -332,7 +324,3 @@ public:
     });
   };
 };
-};
-
-
-#endif

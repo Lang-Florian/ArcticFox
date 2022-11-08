@@ -32,7 +32,7 @@
 namespace movegen {
 // generate all moves of a given movetype
 template<color_t color, movetype_t movetype, typename T>
-T generate(board::Board& board) {
+T generate(Board& board) {
   T moves;
   if constexpr (std::is_same_v<T, move_stack_t>) {
     moves.clear();

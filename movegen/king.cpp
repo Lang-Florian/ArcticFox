@@ -14,7 +14,7 @@
 
 // generate king moves
 template <color_t color, movetype_t movetype, typename T>
-void generate_king_moves(T& moves, board::Board& board, detail_t& detail) {
+void generate_king_moves(T& moves, Board& board, detail_t& detail) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
 

@@ -14,7 +14,7 @@
 
 // generate queen moves
 template <color_t color, movetype_t movetype, typename T>
-void generate_queen_moves(T& moves, board::Board& board, detail_t& detail) {
+void generate_queen_moves(T& moves, Board& board, detail_t& detail) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
   constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);

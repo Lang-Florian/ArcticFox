@@ -167,7 +167,7 @@ constexpr score_t (*(value_jump_table[32]))(square_t, u8_t) = {
   value<24>, value<25>, value<26>, value<27>, value<28>, value<29>, value<30>, value<31>,
 };
 
-u8_t get_endgame_factor(board::Board& board) {
+u8_t get_endgame_factor(Board& board) {
   return (
     (
       board.piece_counts[piece::pawn] + 2
@@ -180,7 +180,7 @@ u8_t get_endgame_factor(board::Board& board) {
 };
 
 template<color_t color>
-bool is_check(board::Board& board) {
+bool is_check(Board& board) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
   square_t king_square = get_lsb(board.bitboards[king]);
@@ -188,14 +188,14 @@ bool is_check(board::Board& board) {
 };
 
 template<color_t color>
-u64_t king_safety(board::Board& board, bitboard_t opponent_attacks) {
+u64_t king_safety(Board& board, bitboard_t opponent_attacks) {
   constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
   square_t king_square = get_lsb(board.bitboards[king]);
   return popcount(attack::attack<piece::king>(king_square) & ~opponent_attacks);
 };
 
 template <color_t color>
-score_t evaluate(board::Board& board) {
+score_t evaluate(Board& board) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   constexpr std::array<piece_t, 6> pieces = piece::all_by_color[color];
   constexpr std::array<piece_t, 6> opponent_pieces = piece::all_by_color[opponent];

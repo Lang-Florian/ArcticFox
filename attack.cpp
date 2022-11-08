@@ -1,22 +1,15 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __ATTACK__MODULE__
-#define __ATTACK__MODULE__
-
+#pragma once
 
 #include <array>
 #include "base.cpp"
 #include "board.cpp"
 #include "magic.cpp"
 
-
 /*
 
   Module to generate piece attacks.
 
 */
-
 
 // generate the bishop and rook attack rays at compile time
 namespace attack::ray {
@@ -165,7 +158,7 @@ bitboard_t knights(bitboard_t knights) {
 };
 
 // get all the attacks on a square
-bitboard_t attackers(board::Board& board, square_t square) {
+bitboard_t attackers(Board& board, square_t square) {
   return (
     (attack::attack<piece::black_pawn>(square) & board.bitboards[piece::white_pawn]) |
     (attack::attack<piece::white_pawn>(square) & board.bitboards[piece::black_pawn]) |
@@ -178,7 +171,7 @@ bitboard_t attackers(board::Board& board, square_t square) {
 
 // get all the attacks of a color on a square
 template <color_t color>
-bitboard_t attackers(board::Board& board, square_t square) {
+bitboard_t attackers(Board& board, square_t square) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
   constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
@@ -198,7 +191,7 @@ bitboard_t attackers(board::Board& board, square_t square) {
 
 // get all attacks of a color
 template<color_t color>
-bitboard_t attacks(board::Board& board) {
+bitboard_t attacks(Board& board) {
   constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
   constexpr piece_t knight = piece::compiletime::to_color(piece::knight, color);
   constexpr piece_t bishop = piece::compiletime::to_color(piece::bishop, color);
@@ -222,6 +215,3 @@ bitboard_t attacks(board::Board& board) {
   return attacked_squares;
 };
 };
-
-
-#endif

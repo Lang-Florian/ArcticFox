@@ -19,7 +19,7 @@ struct perft_result_t {
 };
 
 template<color_t color, movetype_t movetype>
-u64_t perft(board::Board& board, int depth) {
+u64_t perft(Board& board, int depth) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   if (depth == 0) return 1;
   if (depth == 1) return movegen::generate<color, movetype, u64_t>(board);
@@ -44,7 +44,7 @@ u64_t perft(board::Board& board, int depth) {
 };
 
 template<color_t color, movetype_t movetype>
-perft_result_t perft(board::Board& board, int depth, bool print) {
+perft_result_t perft(Board& board, int depth, bool print) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   u64_t start_time = nanoseconds();
   u64_t nodes = 0;
@@ -74,7 +74,7 @@ perft_result_t perft(board::Board& board, int depth, bool print) {
 };
 
 template<movetype_t movetype>
-perft_result_t perft(board::Board& board, int depth, bool print) {
+perft_result_t perft(Board& board, int depth, bool print) {
   if (board.turn == color::white) {
     return perft<color::white, movetype>(board, depth, print);
   } else {

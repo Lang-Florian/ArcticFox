@@ -1,9 +1,4 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __DEBUG__MODULE__
-#define __DEBUG__MODULE__
-
+#pragma once
 
 #include <fstream>
 #include <iostream>
@@ -12,15 +7,12 @@
 #include "board.cpp"
 #include "perft.cpp"
 
-
 /*
 
   Module to generate debug output.
 
 */
 
-
-namespace debug {
 void print_board(board::Board& board) {
   std::cout << " +---+---+---+---+---+---+---+---+\n";
   for (int rank = 7; rank >= 0; rank--) {
@@ -84,7 +76,3 @@ void perft_test_suite(board::Board& board, std::string epd_file_path) {
   std::cout << "Max MNps: " << max_mnps << "\n";
   board.set_fen(original_fen);
 };
-};
-
-
-#endif

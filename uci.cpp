@@ -79,7 +79,7 @@ void test(board::Board& board, std::istringstream& string_stream) {
   if (token == "perft") {
     std::string epd_file_path;
     string_stream >> epd_file_path;
-    debug::perft_test_suite(board, epd_file_path);
+    perft_test_suite(board, epd_file_path);
   };
 };
 
@@ -102,7 +102,7 @@ void loop() {
     } else if (token == "isready") {
       std::cout << "readyok\n";
     } else if (token == "d") {
-      debug::print_board(board);
+      print_board(board);
     } else if (token == "go") {
       go(board, string_stream);
     } else if (token == "position") {

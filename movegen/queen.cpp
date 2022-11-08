@@ -34,7 +34,7 @@ void generate_queen_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t bishop_pinned_queens = board.bitboards[queen] & detail.bishop_pinned & ~detail.rook_pinned;
   while (bishop_pinned_queens) {
     square_t from = pop_lsb(bishop_pinned_queens);
-    bitboard_t possible_to = attack::attack<bishop>(from, board.bitboards[color::none]) & targets & attack::ray::bishop[detail.king_square];
+    bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & targets & bishop_ray[detail.king_square];
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
@@ -48,7 +48,7 @@ void generate_queen_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t rook_pinned_queens = board.bitboards[queen] & ~detail.bishop_pinned & detail.rook_pinned;
   while (rook_pinned_queens) {
     square_t from = pop_lsb(rook_pinned_queens);
-    bitboard_t possible_to = attack::attack<rook>(from, board.bitboards[color::none]) & targets & attack::ray::rook[detail.king_square];
+    bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & targets & rook_ray[detail.king_square];
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
@@ -62,7 +62,7 @@ void generate_queen_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t free_queens = board.bitboards[queen] & ~detail.bishop_pinned & ~detail.rook_pinned;
   while (free_queens) {
     square_t from = pop_lsb(free_queens);
-    bitboard_t possible_to = attack::attack<queen>(from, board.bitboards[color::none]) & targets;
+    bitboard_t possible_to = attack<queen>(from, board.bitboards[color::none]) & targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);

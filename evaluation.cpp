@@ -184,14 +184,14 @@ bool is_check(Board& board) {
   constexpr color_t opponent = color::compiletime::opponent(color);
   constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
   square_t king_square = get_lsb(board.bitboards[king]);
-  return attack::attackers<opponent>(board, king_square);
+  return attackers<opponent>(board, king_square);
 };
 
 template<color_t color>
 u64_t king_safety(Board& board, bitboard_t opponent_attacks) {
   constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
   square_t king_square = get_lsb(board.bitboards[king]);
-  return popcount(attack::attack<piece::king>(king_square) & ~opponent_attacks);
+  return popcount(attack<piece::king>(king_square) & ~opponent_attacks);
 };
 
 template <color_t color>
@@ -216,11 +216,11 @@ score_t evaluate(Board& board) {
   u64_t opponent_legal_moves = movegen::generate<opponent, movetype::legal, u64_t>(board);
   score += (popcount(legal_moves) - popcount(opponent_legal_moves)) >> inverse_mobility_weight;
 
-  bitboard_t attacks = attack::attacks<color>(board);
-  bitboard_t opponent_attacks = attack::attacks<opponent>(board);
-  score += (popcount(attacks) - popcount(opponent_attacks)) >> inverse_attack_weight; 
+  bitboard_t color_attacks = attacks<color>(board);
+  bitboard_t opponent_attacks = attacks<opponent>(board);
+  score += (popcount(color_attacks) - popcount(opponent_attacks)) >> inverse_attack_weight; 
 
-  score += (king_safety<color>(board, opponent_attacks) - king_safety<opponent>(board, attacks)) << king_safety_weight;
+  score += (king_safety<color>(board, opponent_attacks) - king_safety<opponent>(board, color_attacks)) << king_safety_weight;
 
   u8_t endgame_factor = get_endgame_factor(board);
   for (piece_t piece : pieces) {

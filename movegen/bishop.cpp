@@ -38,7 +38,7 @@ void generate_bishop_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t non_discoverable_bishop_pinned_bishops = board.bitboards[bishop] & detail.bishop_pinned & ~detail.rook_pinned & ~detail.rook_discoverable;
   while (non_discoverable_bishop_pinned_bishops) {
     square_t from = pop_lsb(non_discoverable_bishop_pinned_bishops);
-    bitboard_t possible_to = attack::attack<bishop>(from, board.bitboards[color::none]) & non_discoverable_targets & attack::ray::bishop[detail.king_square];
+    bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & non_discoverable_targets & bishop_ray[detail.king_square];
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
@@ -52,7 +52,7 @@ void generate_bishop_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t non_discoverable_free_bishops = board.bitboards[bishop] & ~detail.bishop_pinned & ~detail.rook_pinned & ~detail.rook_discoverable;
   while (non_discoverable_free_bishops) {
     square_t from = pop_lsb(non_discoverable_free_bishops);
-    bitboard_t possible_to = attack::attack<bishop>(from, board.bitboards[color::none]) & non_discoverable_targets;
+    bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & non_discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
@@ -66,7 +66,7 @@ void generate_bishop_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t rook_discoverable_bishop_pinned_bishops = board.bitboards[bishop] & detail.bishop_pinned & ~detail.rook_pinned & detail.rook_discoverable;
   while (rook_discoverable_bishop_pinned_bishops) {
     square_t from = pop_lsb(rook_discoverable_bishop_pinned_bishops);
-    bitboard_t possible_to = attack::attack<bishop>(from, board.bitboards[color::none]) & rook_discoverable_targets & attack::ray::bishop[detail.king_square];
+    bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & rook_discoverable_targets & bishop_ray[detail.king_square];
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
@@ -80,7 +80,7 @@ void generate_bishop_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t rook_discoverable_free_bishops = board.bitboards[bishop] & ~detail.bishop_pinned & ~detail.rook_pinned & detail.rook_discoverable;
   while (rook_discoverable_free_bishops) {
     square_t from = pop_lsb(rook_discoverable_free_bishops);
-    bitboard_t possible_to = attack::attack<bishop>(from, board.bitboards[color::none]) & rook_discoverable_targets;
+    bitboard_t possible_to = attack<bishop>(from, board.bitboards[color::none]) & rook_discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);

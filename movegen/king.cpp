@@ -21,9 +21,9 @@ void generate_king_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t checking_squares = bitboard::none;
 
   if (board.bitboards[king] & detail.bishop_discoverable)
-    checking_squares |= ~attack::ray::bishop[detail.opponent_king_square];
+    checking_squares |= ~bishop_ray[detail.opponent_king_square];
   if (board.bitboards[king] & detail.rook_discoverable)
-    checking_squares |= ~attack::ray::rook[detail.opponent_king_square];
+    checking_squares |= ~rook_ray[detail.opponent_king_square];
   
   bitboard_t targets = bitboard::none;
   if constexpr (movetype & movetype::quiet)
@@ -34,7 +34,7 @@ void generate_king_moves(T& moves, Board& board, detail_t& detail) {
     targets |= board.bitboards[opponent];
   targets &= ~board.bitboards[color] & ~detail.unsafe_king_squares;
   
-  bitboard_t possible_to = attack::attack<piece::king>(detail.king_square) & targets;
+  bitboard_t possible_to = attack<piece::king>(detail.king_square) & targets;
   if constexpr (std::is_same_v<T, move_stack_t>) {
     while (possible_to) {
       square_t to = pop_lsb(possible_to);

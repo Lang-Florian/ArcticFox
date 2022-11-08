@@ -29,11 +29,11 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
     enpassant_pawn = (bitboard(board.enpassant) >> 8) & bitboard::rank_4;
   };
 
-  bool is_always_check = (detail.bishop_discoverable & enpassant_pawn) || (board.bitboards[opponent_king] & attack::attack<pawn>(board.enpassant));
+  bool is_always_check = (detail.bishop_discoverable & enpassant_pawn) || (board.bitboards[opponent_king] & attack<pawn>(board.enpassant));
 
   bitboard_t bishop_pinned_pawns = (
     board.bitboards[pawn] &
-    attack::attack<opponent_pawn>(board.enpassant) &
+    attack<opponent_pawn>(board.enpassant) &
     ~detail.enpassant_pinned &
     detail.bishop_pinned &
     ~detail.rook_pinned
@@ -43,11 +43,11 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
     bool is_check = (
       is_always_check ||
       (detail.rook_discoverable & bitboard(from)) ||
-      ((detail.bishop_discoverable & bitboard(from)) && (~attack::ray::bishop[detail.opponent_king_square] & bitboard(board.enpassant))) ||
-      (attack::attack<rook>(detail.opponent_king_square, (board.bitboards[piece::none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[rook] | board.bitboards[queen]))
+      ((detail.bishop_discoverable & bitboard(from)) && (~bishop_ray[detail.opponent_king_square] & bitboard(board.enpassant))) ||
+      (attack<rook>(detail.opponent_king_square, (board.bitboards[piece::none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[rook] | board.bitboards[queen]))
     );
     bool enpassant = (
-      (attack::ray::bishop[detail.king_square] & bitboard(board.enpassant)) &&
+      (bishop_ray[detail.king_square] & bitboard(board.enpassant)) &&
       (
         (detail.evasion_targets & bitboard(board.enpassant)) ||
         (enpassant_pawn == detail.checkers)
@@ -66,7 +66,7 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
 
   bitboard_t free_pawns = (
     board.bitboards[pawn] &
-    attack::attack<opponent_pawn>(board.enpassant) &
+    attack<opponent_pawn>(board.enpassant) &
     ~detail.enpassant_pinned &
     ~detail.bishop_pinned &
     ~detail.rook_pinned
@@ -76,8 +76,8 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
     bool is_check = (
       is_always_check ||
       (detail.rook_discoverable & bitboard(from)) ||
-      ((detail.bishop_discoverable & bitboard(from)) && (~attack::ray::bishop[detail.opponent_king_square] & bitboard(board.enpassant))) ||
-      (attack::attack<rook>(detail.opponent_king_square, (board.bitboards[piece::none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[rook] | board.bitboards[queen]))
+      ((detail.bishop_discoverable & bitboard(from)) && (~bishop_ray[detail.opponent_king_square] & bitboard(board.enpassant))) ||
+      (attack<rook>(detail.opponent_king_square, (board.bitboards[piece::none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[rook] | board.bitboards[queen]))
     );
     bool enpassant = (
       (

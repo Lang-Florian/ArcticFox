@@ -29,9 +29,9 @@ void generate_pawn_push_moves(T& moves, Board& board, detail_t& detail) {
 
   bitboard_t free_pawns = board.bitboards[pawn] & ~detail.bishop_pinned & ~detail.rook_pinned;
   bitboard_t rook_pinned_pawns = board.bitboards[pawn] & ~detail.bishop_pinned & detail.rook_pinned;
-  bitboard_t pawn_checking_squares = attack::attack<opponent_pawn>(detail.opponent_king_square);
-  bitboard_t knight_checking_squares = attack::attack<knight>(detail.opponent_king_square);
-  bitboard_t rook_checking_squares_no_pawns = attack::attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~board.bitboards[pawn]);
+  bitboard_t pawn_checking_squares = attack<opponent_pawn>(detail.opponent_king_square);
+  bitboard_t knight_checking_squares = attack<knight>(detail.opponent_king_square);
+  bitboard_t rook_checking_squares_no_pawns = attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~board.bitboards[pawn]);
 
   bitboard_t non_discoverable_targets = bitboard::none;
   bitboard_t non_discoverable_knight_promoting_targets = bitboard::none;
@@ -67,21 +67,21 @@ void generate_pawn_push_moves(T& moves, Board& board, detail_t& detail) {
   if constexpr (color == color::white) {
     pushable = (
       (free_pawns & ~(board.bitboards[color::none] << 8) & (detail.evasion_targets << 8) & ~bitboard::rank_7) |
-      (rook_pinned_pawns & ~(board.bitboards[color::none] << 8) & (detail.evasion_targets << 8) & (attack::ray::rook[detail.king_square] << 8))
+      (rook_pinned_pawns & ~(board.bitboards[color::none] << 8) & (detail.evasion_targets << 8) & (rook_ray[detail.king_square] << 8))
     );
     doublepushable = (
       (free_pawns & ~(board.bitboards[color::none] << 8) & ~(board.bitboards[color::none] << 16) & (detail.evasion_targets << 16) & bitboard::rank_2) |
-      (rook_pinned_pawns & ~(board.bitboards[color::none] << 8) & ~(board.bitboards[color::none] << 16) & (detail.evasion_targets << 16) & bitboard::rank_2 & (attack::ray::rook[detail.king_square] << 16))
+      (rook_pinned_pawns & ~(board.bitboards[color::none] << 8) & ~(board.bitboards[color::none] << 16) & (detail.evasion_targets << 16) & bitboard::rank_2 & (rook_ray[detail.king_square] << 16))
     );
     promoting = free_pawns & ~(board.bitboards[color::none] << 8) & (detail.evasion_targets << 8) & bitboard::rank_7;
   } else {
     pushable = (
       (free_pawns & ~(board.bitboards[color::none] >> 8) & (detail.evasion_targets >> 8) & ~bitboard::rank_2) |
-      (rook_pinned_pawns & ~(board.bitboards[color::none] >> 8) & (detail.evasion_targets >> 8) & (attack::ray::rook[detail.king_square] >> 8))
+      (rook_pinned_pawns & ~(board.bitboards[color::none] >> 8) & (detail.evasion_targets >> 8) & (rook_ray[detail.king_square] >> 8))
     );
     doublepushable = (
       (free_pawns & ~(board.bitboards[color::none] >> 8) & ~(board.bitboards[color::none] >> 16) & (detail.evasion_targets >> 16) & bitboard::rank_7) |
-      (rook_pinned_pawns & ~(board.bitboards[color::none] >> 8) & ~(board.bitboards[color::none] >> 16) & (detail.evasion_targets >> 16) & bitboard::rank_7 & (attack::ray::rook[detail.king_square] >> 16))
+      (rook_pinned_pawns & ~(board.bitboards[color::none] >> 8) & ~(board.bitboards[color::none] >> 16) & (detail.evasion_targets >> 16) & bitboard::rank_7 & (rook_ray[detail.king_square] >> 16))
     );
     promoting = free_pawns & ~(board.bitboards[color::none] >> 8) & (detail.evasion_targets >> 8) & bitboard::rank_2;
   };
@@ -176,7 +176,7 @@ void generate_pawn_push_moves(T& moves, Board& board, detail_t& detail) {
     while (rook_promoting_pawns) {
       square_t from = pop_lsb(rook_promoting_pawns);
       square_t to = from + push_offset;
-      bitboard_t rook_checking_squares =  attack::attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~bitboard(from));
+      bitboard_t rook_checking_squares =  attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~bitboard(from));
       bool is_check = (bitboard(from) & discoverable) || (bitboard(to) & rook_checking_squares);
       if constexpr (movetype == movetype::check) {
         if (is_check) {
@@ -189,7 +189,7 @@ void generate_pawn_push_moves(T& moves, Board& board, detail_t& detail) {
     while (queen_promoting_pawns) {
       square_t from = pop_lsb(queen_promoting_pawns);
       square_t to = from + push_offset;
-      bitboard_t queen_checking_squares = detail.bishop_checking_squares | attack::attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~bitboard(from));
+      bitboard_t queen_checking_squares = detail.bishop_checking_squares | attack<rook>(detail.opponent_king_square, board.bitboards[piece::none] & ~bitboard(from));
       bool is_check = (bitboard(from) & discoverable) || (bitboard(to) & queen_checking_squares);
       if constexpr (movetype == movetype::check) {
         if (is_check) {

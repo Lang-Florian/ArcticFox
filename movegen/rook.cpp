@@ -38,7 +38,7 @@ void generate_rook_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t non_discoverable_rook_pinned_rooks = board.bitboards[rook] & ~detail.bishop_pinned & detail.rook_pinned & ~detail.bishop_discoverable;
   while (non_discoverable_rook_pinned_rooks) {
     square_t from = pop_lsb(non_discoverable_rook_pinned_rooks);
-    bitboard_t possible_to = attack::attack<rook>(from, board.bitboards[color::none]) & non_discoverable_targets & attack::ray::rook[detail.king_square];
+    bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & non_discoverable_targets & rook_ray[detail.king_square];
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
@@ -52,7 +52,7 @@ void generate_rook_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t non_discoverable_free_rooks = board.bitboards[rook] & ~detail.bishop_pinned & ~detail.rook_pinned & ~detail.bishop_discoverable;
   while (non_discoverable_free_rooks) {
     square_t from = pop_lsb(non_discoverable_free_rooks);
-    bitboard_t possible_to = attack::attack<rook>(from, board.bitboards[color::none]) & non_discoverable_targets;
+    bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & non_discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
@@ -66,7 +66,7 @@ void generate_rook_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t bishop_discoverable_rook_pinned_rooks = board.bitboards[rook] & ~detail.bishop_pinned & detail.rook_pinned & detail.bishop_discoverable;
   while (bishop_discoverable_rook_pinned_rooks) {
     square_t from = pop_lsb(bishop_discoverable_rook_pinned_rooks);
-    bitboard_t possible_to = attack::attack<rook>(from, board.bitboards[color::none]) & bishop_discoverable_targets & attack::ray::rook[detail.king_square];
+    bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & bishop_discoverable_targets & rook_ray[detail.king_square];
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
@@ -80,7 +80,7 @@ void generate_rook_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t bishop_discoverable_free_rooks = board.bitboards[rook] & ~detail.bishop_pinned & ~detail.rook_pinned & detail.bishop_discoverable;
   while (bishop_discoverable_free_rooks) {
     square_t from = pop_lsb(bishop_discoverable_free_rooks);
-    bitboard_t possible_to = attack::attack<rook>(from, board.bitboards[color::none]) & bishop_discoverable_targets;
+    bitboard_t possible_to = attack<rook>(from, board.bitboards[color::none]) & bishop_discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);

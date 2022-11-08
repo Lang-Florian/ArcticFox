@@ -35,13 +35,13 @@ void go(board::Board& board, std::istringstream& string_stream) {
       string_stream >> depth;
       string_stream >> movetype;
       if (movetype == "quiet") {
-        perft::perft<movetype::quiet>(board, depth, true);
+        perft<movetype::quiet>(board, depth, true);
       } else if (movetype == "check") {
-        perft::perft<movetype::check>(board, depth, true);
+        perft<movetype::check>(board, depth, true);
       } else if (movetype == "capture") {
-        perft::perft<movetype::capture>(board, depth, true);
+        perft<movetype::capture>(board, depth, true);
       } else {
-        perft::perft<movetype::legal>(board, depth, true);
+        perft<movetype::legal>(board, depth, true);
       };
       return;
     } else if (token == "depth") {

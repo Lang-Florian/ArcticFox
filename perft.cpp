@@ -1,9 +1,4 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __PERFT__MODULE__
-#define __PERFT__MODULE__
-
+#pragma once
 
 #include <iostream>
 #include "base.cpp"
@@ -11,15 +6,12 @@
 #include "board.cpp"
 #include "movegen/movegen.cpp"
 
-
 /*
 
   Module to generate perft results.
 
 */
 
-
-namespace perft {
 struct perft_result_t {
   u64_t nodes;
   float time;
@@ -89,7 +81,3 @@ perft_result_t perft(board::Board& board, int depth, bool print) {
     return perft<color::black, movetype>(board, depth, print);
   };
 };
-};
-
-
-#endif

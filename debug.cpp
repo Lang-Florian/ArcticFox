@@ -53,8 +53,8 @@ void perft_test_suite(board::Board& board, std::string epd_file_path) {
       line_stream >> nodes_token;
       int depth = std::stoi(depth_token.substr(1));
       u64_t nodes = std::stol(nodes_token);
-      perft::perft_result_t perft_result;
-      perft_result = perft::perft<movetype::legal>(board, depth, false);
+      perft_result_t perft_result;
+      perft_result = perft<movetype::legal>(board, depth, false);
       if (perft_result.nodes == nodes) {
         std::cout << "       ";
       } else {

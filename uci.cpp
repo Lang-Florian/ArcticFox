@@ -1,9 +1,4 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __UCI__MODULE__
-#define __UCI__MODULE__
-
+#pragma once
 
 #include <iostream>
 #include <sstream>
@@ -15,15 +10,12 @@
 #include "search.cpp"
 #include "transposition.cpp"
 
-
 /*
 
   Module to handle the UCI protocol.
 
 */
 
-
-namespace uci {
 // uci go command
 void go(board::Board& board, std::istringstream& string_stream) {
   std::string token;
@@ -115,7 +107,3 @@ void loop() {
     };
   } while (token != "quit" && token != "exit");
 };
-};
-
-
-#endif

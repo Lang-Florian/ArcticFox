@@ -115,24 +115,24 @@ bitboard_t attack(square_t square, bitboard_t occupancy=bitboard::none) {
   } else if constexpr (piece == piece::knight || piece == piece::white_knight || piece == piece::black_knight) {
     return table::knight[square];
   } else if constexpr (piece == piece::bishop || piece == piece::white_bishop || piece == piece::black_bishop) {
-    return magic::table[
-      magic::bishop[square].offset +
-      (((occupancy | magic::bishop[square].mask) * magic::bishop[square].magic_number) >> 55)
+    return magic_table[
+      bishop_magics[square].offset +
+      (((occupancy | bishop_magics[square].mask) * bishop_magics[square].magic_number) >> 55)
     ];
   } else if constexpr (piece == piece::rook || piece == piece::white_rook || piece == piece::black_rook) {
-    return magic::table[
-      magic::rook[square].offset +
-      (((occupancy | magic::rook[square].mask) * magic::rook[square].magic_number) >> 52)
+    return magic_table[
+      rook_magics[square].offset +
+      (((occupancy | rook_magics[square].mask) * rook_magics[square].magic_number) >> 52)
     ];
   } else if constexpr (piece == piece::queen || piece == piece::white_queen || piece == piece::black_queen) {
     return (
-      magic::table[
-        magic::bishop[square].offset +
-        (((occupancy | magic::bishop[square].mask) * magic::bishop[square].magic_number) >> 55)
+      magic_table[
+        bishop_magics[square].offset +
+        (((occupancy | bishop_magics[square].mask) * bishop_magics[square].magic_number) >> 55)
       ] |
-      magic::table[
-        magic::rook[square].offset +
-        (((occupancy | magic::rook[square].mask) * magic::rook[square].magic_number) >> 52)
+      magic_table[
+        rook_magics[square].offset +
+        (((occupancy | rook_magics[square].mask) * rook_magics[square].magic_number) >> 52)
       ]
     );
   } else if constexpr (piece == piece::king || piece == piece::white_king || piece == piece::black_king) {

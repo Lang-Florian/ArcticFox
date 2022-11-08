@@ -1,9 +1,4 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __SEARCH__MODULE__
-#define __SEARCH__MODULE__
-
+#pragma once
 
 #include <iostream>
 #include <ranges>
@@ -14,15 +9,12 @@
 #include "evaluation.cpp"
 #include "transposition.cpp"
 
-
 /*
   
   Module for the search algorithm.
   
 */
 
-
-namespace search {
 struct search_result_t {
   pv_t pv;
   score_t score;
@@ -127,7 +119,7 @@ search_result_t search(board::Board board, int depth, score_t alpha, score_t bet
   return search_result_t {pv, alpha};
 };
 
-search_result_t search (board::Board& board, int depth) {
+search_result_t search(board::Board& board, int depth) {
   search_result_t search_result;
   pv_t pv {};
   for (int i = 1; i <= depth; i++) {
@@ -154,7 +146,3 @@ search_result_t search (board::Board& board, int depth) {
   };
   return search_result;
 };
-};
-
-
-#endif

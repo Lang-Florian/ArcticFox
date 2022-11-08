@@ -48,7 +48,7 @@ void go(board::Board& board, std::istringstream& string_stream) {
       string_stream >> depth;
     };
   };
-  search::search_result_t search_result = search::search(board, depth);
+  search_result_t search_result = search(board, depth);
   std::cout << "bestmove " << move::to_string(search_result.pv[0]) << "\n";
 };
 

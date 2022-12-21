@@ -17,7 +17,7 @@ void print_board(Board& board) {
   std::cout << " +---+---+---+---+---+---+---+---+\n";
   for (int rank = 7; rank >= 0; rank--) {
     for (int file = 0; file < 8; file++) {
-      std::cout << " | " << piece::to_string(board.pieces[8 * (7 - rank) + file]);
+      std::cout << " | " << piece_to_string(board.pieces[8 * (7 - rank) + file]);
     };
     std::cout << " | " << rank + 1 << "\n";
     std::cout << " +---+---+---+---+---+---+---+---+\n";
@@ -54,7 +54,7 @@ void perft_test_suite(Board& board, std::string epd_file_path) {
       int depth = std::stoi(depth_token.substr(1));
       u64_t nodes = std::stol(nodes_token);
       perft_result_t perft_result;
-      perft_result = perft<movetype::legal>(board, depth, false);
+      perft_result = perft<legal>(board, depth, false);
       if (perft_result.nodes == nodes) {
         std::cout << "       ";
       } else {
@@ -75,4 +75,16 @@ void perft_test_suite(Board& board, std::string epd_file_path) {
   std::cout << "Mean MNps: " << (total_nodes / total_time) * 1e-6 << "\n";
   std::cout << "Max MNps: " << max_mnps << "\n";
   board.set_fen(original_fen);
+};
+
+void print_bitboard(bitboard_t bitboard) {
+  std::cout << " +---+---+---+---+---+---+---+---+\n";
+  for (int rank = 7; rank >= 0; rank--) {
+    for (int file = 0; file < 8; file++) {
+      std::cout << " | " << (bitboard & (1ULL << (8 * (7 - rank) + file)) ? "1" : "0");
+    };
+    std::cout << " | " << rank + 1 << "\n";
+    std::cout << " +---+---+---+---+---+---+---+---+\n";
+  };
+  std::cout << "   a   b   c   d   e   f   g   h\n\n";
 };

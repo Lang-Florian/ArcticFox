@@ -20,20 +20,20 @@ struct perft_result_t {
 
 template<color_t color, movetype_t movetype>
 u64_t perft(Board& board, int depth) {
-  constexpr color_t opponent = color::compiletime::opponent(color);
+  constexpr color_t opponent = opponent(color);
   if (depth == 0) return 1;
-  if (depth == 1) return movegen::generate<color, movetype, u64_t>(board);
+  if (depth == 1) return generate<color, movetype, u64_t>(board);
   if (depth == 2) {
-    move_stack_t legal_moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
+    move_stack_t legal_moves = generate<color, legal, move_stack_t>(board);
     u64_t nodes = 0;
     for (move_t move : legal_moves) {
       board.make<color>(move);
-      nodes += movegen::generate<opponent, movetype, u64_t>(board);
+      nodes += generate<opponent, movetype, u64_t>(board);
       board.unmake<color>();
     };
     return nodes;
   };
-  move_stack_t legal_moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
+  move_stack_t legal_moves = generate<color, legal, move_stack_t>(board);
   u64_t nodes = 0;
   for (move_t move : legal_moves) {
     board.make<color>(move);
@@ -45,11 +45,11 @@ u64_t perft(Board& board, int depth) {
 
 template<color_t color, movetype_t movetype>
 perft_result_t perft(Board& board, int depth, bool print) {
-  constexpr color_t opponent = color::compiletime::opponent(color);
+  constexpr color_t opponent = opponent(color);
   u64_t start_time = nanoseconds();
   u64_t nodes = 0;
-  move_stack_t legal_moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
-  move_stack_t moves = movegen::generate<color, movetype, move_stack_t>(board);
+  move_stack_t legal_moves = generate<color, legal, move_stack_t>(board);
+  move_stack_t moves = generate<color, movetype, move_stack_t>(board);
   for (move_t move : legal_moves) {
     u64_t local_nodes = 0;
     if (moves.contains(move) || depth != 1) {
@@ -59,7 +59,7 @@ perft_result_t perft(Board& board, int depth, bool print) {
     };
     nodes += local_nodes;
     if (print) {
-      std::cout << move::to_string(move) << ": " << local_nodes << "\n";
+      std::cout << move_to_string(move) << ": " << local_nodes << "\n";
     };
   };
   u64_t end_time = nanoseconds();
@@ -75,9 +75,9 @@ perft_result_t perft(Board& board, int depth, bool print) {
 
 template<movetype_t movetype>
 perft_result_t perft(Board& board, int depth, bool print) {
-  if (board.turn == color::white) {
-    return perft<color::white, movetype>(board, depth, print);
+  if (board.turn == white) {
+    return perft<white, movetype>(board, depth, print);
   } else {
-    return perft<color::black, movetype>(board, depth, print);
+    return perft<black, movetype>(board, depth, print);
   };
 };

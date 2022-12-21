@@ -22,7 +22,7 @@ struct search_result_t {
 
 template <color_t color>
 score_t q_search(Board& board, int depth, score_t alpha, score_t beta, u64_t& nodes) {
-  constexpr color_t opponent = color::compiletime::opponent(color);
+  constexpr color_t opponent = opponent(color);
   if (depth == 0) {
     nodes++;
     return evaluate<color>(board);
@@ -35,8 +35,8 @@ score_t q_search(Board& board, int depth, score_t alpha, score_t beta, u64_t& no
   if (alpha < score) {
     alpha = score;
   };
-  move_stack_t moves = movegen::generate<color, movetype::check | movetype::capture, move_stack_t>(board);
-  moves.sort(move::comparison);
+  move_stack_t moves = generate<color, check | capture, move_stack_t>(board);
+  moves.sort(comparison);
   for (move_t move : moves) {
     board.make<color>(move);
     score = add_depth(q_search<opponent>(board, depth - 1, remove_depth(beta), remove_depth(alpha), nodes));
@@ -53,12 +53,12 @@ score_t q_search(Board& board, int depth, score_t alpha, score_t beta, u64_t& no
 
 template <color_t color>
 search_result_t search(Board board, int depth, score_t alpha, score_t beta, pv_t old_pv, u64_t& tbhits, u64_t& nodes) {
-  constexpr color_t opponent = color::compiletime::opponent(color);
+  constexpr color_t opponent = opponent(color);
   if (depth == 0) {
     return search_result_t {pv_t {}, q_search<color>(board, MAX_QSEARCH_DEPTH, alpha, beta, nodes)};
   };
   if (board.position_existed()) {
-    nodes++;
+    ++nodes;
     return search_result_t {pv_t {}, draw};
   };
   pv_t pv {};
@@ -70,7 +70,7 @@ search_result_t search(Board board, int depth, score_t alpha, score_t beta, pv_t
     score_t entry_score = entry.get_score();
     if (bound == exact_bound) {
       pv.push(entry.move);
-      nodes++;
+      ++nodes;
       return search_result_t {pv, entry_score};
     } else if (bound == upper_bound && beta > entry_score) {
       beta = entry_score;
@@ -78,13 +78,13 @@ search_result_t search(Board board, int depth, score_t alpha, score_t beta, pv_t
       alpha = entry_score;
     };
     if (alpha >= beta) {
-      nodes++;
+      ++nodes;
       return search_result_t {pv, entry_score};
     };
   };
 
-  move_stack_t legal_moves = movegen::generate<color, movetype::legal, move_stack_t>(board);
-  legal_moves.sort(move::reverse_comparison);
+  move_stack_t legal_moves = generate<color, legal, move_stack_t>(board);
+  legal_moves.sort(reverse_comparison);
   if (old_pv.size() > 0) {
     move_t move = old_pv.pop();
     if (legal_moves.contains(move)) {
@@ -126,10 +126,10 @@ search_result_t search(Board& board, int depth) {
     u64_t tbhits = 0;
     u64_t nodes = 0;
     u64_t start_time = milliseconds();
-    if (board.turn == color::white) {
-      search_result = search<color::white>(board, i, -inf, inf, pv, tbhits, nodes);
+    if (board.turn == white) {
+      search_result = search<white>(board, i, -inf, inf, pv, tbhits, nodes);
     } else {
-      search_result = search<color::black>(board, i, -inf, inf, pv, tbhits, nodes);
+      search_result = search<black>(board, i, -inf, inf, pv, tbhits, nodes);
       search_result.score = -search_result.score;
     };
     u64_t end_time = milliseconds();
@@ -142,7 +142,7 @@ search_result_t search(Board& board, int depth) {
               << " tbhits " << tbhits
               << " nodes " << nodes
               << " nps " << nps
-              << " string info current bestmove " << move::to_string(search_result.pv[0]) << "\n";
+              << " string info current bestmove " << move_to_string(search_result.pv[0]) << "\n";
   };
   return search_result;
 };

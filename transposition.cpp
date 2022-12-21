@@ -56,7 +56,7 @@ struct entry_t {
   };
 };
 
-u64_t _transposition_table_size = 1ULL << (63 - __builtin_clzll(3 * free_memory() / sizeof(entry_t) / 4));
+u64_t _transposition_table_size = 1ULL << (63 - __builtin_clzll(3 * free_ram() / sizeof(entry_t) / 4));
 
 const u64_t _index_mask = _transposition_table_size - 1;
 

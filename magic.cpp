@@ -16,7 +16,7 @@
 // generate the incomplete bishop and rook attack rays
 constexpr std::array<bitboard_t, 64> _generate_incomplete_bishop_ray() {
 	std::array<bitboard_t, 64> incomplete_bishop_ray{0ULL};
-	for (square_t square=0; square<64; square++) {
+	for (square_t square = 0; square < none_square; ++square) {
 		incomplete_bishop_ray[square] = 0ULL;
 		for (int i = 1; i < square % 8 && i < square / 8; i++)
 			incomplete_bishop_ray[square] |= (bitboard(square) >> (9 * i));
@@ -33,7 +33,7 @@ constexpr std::array<bitboard_t, 64> incomplete_bishop_ray = _generate_incomplet
 
 constexpr std::array<bitboard_t, 64> _generate_incomplete_rook_ray() {
 	std::array<bitboard_t, 64> incomplete_rook_ray{0ULL};
-	for (square_t square=0; square<64; square++) {
+	for (square_t square = 0; square < none_square; ++square) {
 		incomplete_rook_ray[square] = 0ULL;
 		for (int i = 1; i < square % 8; i++)
 			incomplete_rook_ray[square] |= (bitboard(square) >> i);
@@ -101,7 +101,7 @@ constexpr bitboard_t _rook_attacks(square_t square, bitboard_t occupancy) {
 
 // generates possible occupancies on rays
 constexpr bitboard_t _generate_occupancy(int index, bitboard_t ray) {
-	bitboard_t occupancy = bitboard::none;
+	bitboard_t occupancy = none;
 	int ray_size = popcount(ray);
 	for (int i = 0; i < ray; i++) {
 		square_t square = get_lsb(ray);
@@ -256,8 +256,8 @@ constexpr magic_t rook_magics[64] = {
 
 // generate the magic table from the magics
 constexpr std::array<bitboard_t, 88507> _generate_magic_table() {
-	std::array<bitboard_t, 88507> magic_table{bitboard::none};
-	for (square_t square=0; square<64; square++) {
+	std::array<bitboard_t, 88507> magic_table{none};
+	for (square_t square = 0; square < none_square; ++square) {
 		bitboard_t bishop_ray = incomplete_bishop_ray[square];
 		int occupancy_bound_bishop = 1 << popcount(bishop_ray);
 		for (int occupancy_index = 0; occupancy_index < occupancy_bound_bishop; occupancy_index++) {

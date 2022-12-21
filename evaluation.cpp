@@ -130,30 +130,30 @@ constexpr score_t king_value_endgame[64] = {
 
 template <piece_t piece>
 score_t value(square_t square, u8_t endgame_factor=0) {
-  if constexpr (piece == piece::white_pawn) {
+  if constexpr (piece == white_pawn) {
     return pawn_value[square];
-  } else if constexpr (piece == piece::black_pawn) {
+  } else if constexpr (piece == black_pawn) {
     return pawn_value[square ^ 56];
-  } else if constexpr (piece == piece::white_knight) {
+  } else if constexpr (piece == white_knight) {
     return knight_value[square];
-  } else if constexpr (piece == piece::black_knight) {
+  } else if constexpr (piece == black_knight) {
     return knight_value[square ^ 56];
-  } else if constexpr (piece == piece::white_bishop) {
+  } else if constexpr (piece == white_bishop) {
     return bishop_value[square];
-  } else if constexpr (piece == piece::black_bishop) {
+  } else if constexpr (piece == black_bishop) {
     return bishop_value[square ^ 56];
-  } else if constexpr (piece == piece::white_rook) {
+  } else if constexpr (piece == white_rook) {
     return rook_value[square];
-  } else if constexpr (piece == piece::black_rook) {
+  } else if constexpr (piece == black_rook) {
     return rook_value[square ^ 56];
-  } else if constexpr (piece == piece::white_queen) {
+  } else if constexpr (piece == white_queen) {
     return queen_value[square];
-  } else if constexpr (piece == piece::black_queen) {
+  } else if constexpr (piece == black_queen) {
     return queen_value[square ^ 56];
-  } else if constexpr (piece == piece::white_king) {
+  } else if constexpr (piece == white_king) {
     return ((endgame_factor * king_value_endgame[square]) >> 8) +
            (((256 - endgame_factor) * king_value_middlegame[square]) >> 8);
-  } else if constexpr (piece == piece::black_king) {
+  } else if constexpr (piece == black_king) {
     return ((endgame_factor * king_value_endgame[square ^ 56]) >> 8) +
            (((256 - endgame_factor) * king_value_middlegame[square ^ 56]) >> 8);
   };
@@ -170,37 +170,37 @@ constexpr score_t (*(value_jump_table[32]))(square_t, u8_t) = {
 u8_t get_endgame_factor(Board& board) {
   return (
     (
-      board.piece_counts[piece::pawn] + 2
+      board.piece_counts[pawn] + 2
     ) * (
-      ((board.piece_counts[piece::knight] + board.piece_counts[piece::bishop]) << 1) +
-      (board.piece_counts[piece::rook] << 2) +
-      (board.piece_counts[piece::queen] << 3)
+      ((board.piece_counts[knight] + board.piece_counts[bishop]) << 1) +
+      (board.piece_counts[rook] << 2) +
+      (board.piece_counts[queen] << 3)
     )
   ) >> 1;
 };
 
 template<color_t color>
 bool is_check(Board& board) {
-  constexpr color_t opponent = color::compiletime::opponent(color);
-  constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
-  square_t king_square = get_lsb(board.bitboards[king]);
+  constexpr color_t opponent = opponent(color);
+  constexpr piece_t color_king = to_color(king, color);
+  square_t king_square = get_lsb(board.bitboards[color_king]);
   return attackers<opponent>(board, king_square);
 };
 
 template<color_t color>
 u64_t king_safety(Board& board, bitboard_t opponent_attacks) {
-  constexpr piece_t king = piece::compiletime::to_color(piece::king, color);
-  square_t king_square = get_lsb(board.bitboards[king]);
-  return popcount(attack<piece::king>(king_square) & ~opponent_attacks);
+  constexpr piece_t color_king = to_color(king, color);
+  square_t king_square = get_lsb(board.bitboards[color_king]);
+  return popcount(attack<king>(king_square) & ~opponent_attacks);
 };
 
 template <color_t color>
 score_t evaluate(Board& board) {
-  constexpr color_t opponent = color::compiletime::opponent(color);
-  constexpr std::array<piece_t, 6> pieces = piece::all_by_color[color];
-  constexpr std::array<piece_t, 6> opponent_pieces = piece::all_by_color[opponent];
+  constexpr color_t opponent = opponent(color);
+  constexpr std::array<piece_t, 6> pieces = all_pieces_by_color[color];
+  constexpr std::array<piece_t, 6> opponent_pieces = all_pieces_by_color[opponent];
 
-  u64_t legal_moves = movegen::generate<color, movetype::legal, u64_t>(board);
+  u64_t legal_moves = generate<color, legal, u64_t>(board);
   if (legal_moves == 0) {
     if (is_check<color>(board)) {
       return -checkmate;
@@ -213,7 +213,7 @@ score_t evaluate(Board& board) {
 
   score -= is_check<color>(board) * check_weight;
 
-  u64_t opponent_legal_moves = movegen::generate<opponent, movetype::legal, u64_t>(board);
+  u64_t opponent_legal_moves = generate<opponent, legal, u64_t>(board);
   score += (popcount(legal_moves) - popcount(opponent_legal_moves)) >> inverse_mobility_weight;
 
   bitboard_t color_attacks = attacks<color>(board);

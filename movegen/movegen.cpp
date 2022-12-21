@@ -1,9 +1,4 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __MOVEGEN__MODULE__
-#define __MOVEGEN__MODULE__
-
+#pragma once
 
 #include <string>
 #include <type_traits>
@@ -20,7 +15,10 @@
 #include "pawn_push.cpp"
 #include "pawn_capture.cpp"
 #include "pawn_enpassant.cpp"
+#include "../debug.cpp"
 
+
+#include <iostream>
 
 /*
 
@@ -28,8 +26,6 @@
 
 */
 
-
-namespace movegen {
 // generate all moves of a given movetype
 template<color_t color, movetype_t movetype, typename T>
 T generate(Board& board) {
@@ -56,7 +52,3 @@ T generate(Board& board) {
   generate_king_castling_moves<color, movetype>(moves, board, detail);
   return moves;
 };
-};
-
-
-#endif

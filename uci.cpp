@@ -27,13 +27,13 @@ void go(Board& board, std::istringstream& string_stream) {
       string_stream >> depth;
       string_stream >> movetype;
       if (movetype == "quiet") {
-        perft<movetype::quiet>(board, depth, true);
+        perft<quiet>(board, depth, true);
       } else if (movetype == "check") {
-        perft<movetype::check>(board, depth, true);
+        perft<check>(board, depth, true);
       } else if (movetype == "capture") {
-        perft<movetype::capture>(board, depth, true);
+        perft<capture>(board, depth, true);
       } else {
-        perft<movetype::legal>(board, depth, true);
+        perft<legal>(board, depth, true);
       };
       return;
     } else if (token == "depth") {
@@ -41,7 +41,7 @@ void go(Board& board, std::istringstream& string_stream) {
     };
   };
   search_result_t search_result = search(board, depth);
-  std::cout << "bestmove " << move::to_string(search_result.pv[0]) << "\n";
+  std::cout << "bestmove " << move_to_string(search_result.pv[0]) << "\n";
 };
 
 // uci position command
@@ -76,7 +76,7 @@ void test(Board& board, std::istringstream& string_stream) {
 };
 
 // uci main loop
-void loop() {
+void uci_loop() {
   std::cout << ENGINE_NAME << " v" << VERSION << " by " << AUTHOR << "\n";
   std::cout << "info string transposition table size " << (table_size() >> 30) << "GiB\n";
   Board board;

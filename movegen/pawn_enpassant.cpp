@@ -1,9 +1,4 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __PAWN_ENPASSANT__MODULE__
-#define __PAWN_ENPASSANT__MODULE__
-
+#pragma once
 
 #include <type_traits>
 #include "../base.cpp"
@@ -15,24 +10,24 @@
 // generate pawn enpassant moves
 template <color_t color, movetype_t movetype, typename T>
 void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
-  constexpr color_t opponent = color::compiletime::opponent(color);
-  constexpr piece_t pawn = piece::compiletime::to_color(piece::pawn, color);
-  constexpr piece_t rook = piece::compiletime::to_color(piece::rook, color);
-  constexpr piece_t queen = piece::compiletime::to_color(piece::queen, color);
-  constexpr piece_t opponent_pawn = piece::compiletime::to_color(piece::pawn, opponent);
-  constexpr piece_t opponent_king = piece::compiletime::to_color(piece::king, opponent);
+  constexpr color_t opponent = opponent(color);
+  constexpr piece_t color_pawn = to_color(pawn, color);
+  constexpr piece_t color_rook = to_color(rook, color);
+  constexpr piece_t color_queen = to_color(queen, color);
+  constexpr piece_t opponent_pawn = to_color(pawn, opponent);
+  constexpr piece_t opponent_king = to_color(king, opponent);
 
   bitboard_t enpassant_pawn;
-  if constexpr (color == color::white) {
-    enpassant_pawn = (bitboard(board.enpassant) << 8) & bitboard::rank_5;
+  if constexpr (color == white) {
+    enpassant_pawn = (bitboard(board.enpassant) << 8) & rank_5;
   } else {
-    enpassant_pawn = (bitboard(board.enpassant) >> 8) & bitboard::rank_4;
+    enpassant_pawn = (bitboard(board.enpassant) >> 8) & rank_4;
   };
 
   bool is_always_check = (detail.bishop_discoverable & enpassant_pawn) || (board.bitboards[opponent_king] & attack<pawn>(board.enpassant));
 
   bitboard_t bishop_pinned_pawns = (
-    board.bitboards[pawn] &
+    board.bitboards[color_pawn] &
     attack<opponent_pawn>(board.enpassant) &
     ~detail.enpassant_pinned &
     detail.bishop_pinned &
@@ -44,7 +39,7 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
       is_always_check ||
       (detail.rook_discoverable & bitboard(from)) ||
       ((detail.bishop_discoverable & bitboard(from)) && (~bishop_ray[detail.opponent_king_square] & bitboard(board.enpassant))) ||
-      (attack<rook>(detail.opponent_king_square, (board.bitboards[piece::none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[rook] | board.bitboards[queen]))
+      (attack<rook>(detail.opponent_king_square, (board.bitboards[none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[color_rook] | board.bitboards[color_queen]))
     );
     bool enpassant = (
       (bishop_ray[detail.king_square] & bitboard(board.enpassant)) &&
@@ -52,20 +47,20 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
         (detail.evasion_targets & bitboard(board.enpassant)) ||
         (enpassant_pawn == detail.checkers)
       ) && (
-        (movetype & movetype::capture) ||
-        ((movetype & movetype::check) && is_check)
+        (movetype & capture) ||
+        ((movetype & check) && is_check)
       )
     );
     if constexpr (std::is_same_v<T, move_stack_t>) {
       if (enpassant)
-        moves.push(move::compiletime::enpassant_move<color>(from, board.enpassant, is_check));
+        moves.push(enpassant_move<color>(from, board.enpassant, is_check));
     } else {
       moves += enpassant;
     };
   };
 
   bitboard_t free_pawns = (
-    board.bitboards[pawn] &
+    board.bitboards[color_pawn] &
     attack<opponent_pawn>(board.enpassant) &
     ~detail.enpassant_pinned &
     ~detail.bishop_pinned &
@@ -77,25 +72,22 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
       is_always_check ||
       (detail.rook_discoverable & bitboard(from)) ||
       ((detail.bishop_discoverable & bitboard(from)) && (~bishop_ray[detail.opponent_king_square] & bitboard(board.enpassant))) ||
-      (attack<rook>(detail.opponent_king_square, (board.bitboards[piece::none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[rook] | board.bitboards[queen]))
+      (attack<rook>(detail.opponent_king_square, (board.bitboards[none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[color_rook] | board.bitboards[color_queen]))
     );
     bool enpassant = (
       (
         (detail.evasion_targets & bitboard(board.enpassant)) ||
         (enpassant_pawn == detail.checkers)
       ) && (
-        (movetype & movetype::capture) ||
-        ((movetype & movetype::check) && is_check)
+        (movetype & capture) ||
+        ((movetype & check) && is_check)
       )
     );
     if constexpr (std::is_same_v<T, move_stack_t>) {
       if (enpassant)
-        moves.push(move::compiletime::enpassant_move<color>(from, board.enpassant, is_check));
+        moves.push(enpassant_move<color>(from, board.enpassant, is_check));
     } else {
       moves += enpassant;
     };
   };
 };
-
-
-#endif

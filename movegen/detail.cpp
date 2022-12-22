@@ -37,10 +37,10 @@ struct detail_t {
   template<color_t color>
   void update(Board& board) {
     constexpr color_t opponent = opponent(color);
-    constexpr piece_t turn_king = to_color(king, color);
-    constexpr piece_t turn_queen = to_color(queen, color);
-    constexpr piece_t turn_rook = to_color(rook, color);
-    constexpr piece_t turn_bishop = to_color(bishop, color);
+    constexpr piece_t color_king = to_color(king, color);
+    constexpr piece_t color_queen = to_color(queen, color);
+    constexpr piece_t color_rook = to_color(rook, color);
+    constexpr piece_t color_bishop = to_color(bishop, color);
     constexpr piece_t opponent_king = to_color(king, opponent);
     constexpr piece_t opponent_queen = to_color(queen, opponent);
     constexpr piece_t opponent_rook = to_color(rook, opponent);
@@ -48,7 +48,7 @@ struct detail_t {
     constexpr piece_t opponent_knight = to_color(knight, opponent);
     constexpr piece_t opponent_pawn = to_color(pawn, opponent);
 
-    this->king_square = get_lsb(board.bitboards[turn_king]);
+    this->king_square = get_lsb(board.bitboards[color_king]);
     this->opponent_king_square = get_lsb(board.bitboards[opponent_king]);
 
     bitboard_t king_bishop_attack = attack<bishop>(this->king_square, board.bitboards[none]);
@@ -68,25 +68,25 @@ struct detail_t {
     while (opponent_bishop_movers) {
       square_t square = pop_lsb(opponent_bishop_movers);
       this->attacked_squares |= attack<bishop>(square, board.bitboards[none]);
-      this->unsafe_king_squares |= attack<bishop>(square, board.bitboards[none] & ~board.bitboards[king]);
+      this->unsafe_king_squares |= attack<bishop>(square, board.bitboards[none] & ~board.bitboards[color_king]);
     };
     bitboard_t opponent_rook_movers = board.bitboards[opponent_rook] | board.bitboards[opponent_queen];
     while (opponent_rook_movers) {
       square_t square = pop_lsb(opponent_rook_movers);
       this->attacked_squares |= attack<rook>(square, board.bitboards[none]);
-      this->unsafe_king_squares |= attack<rook>(square, board.bitboards[none] & ~board.bitboards[king]);
+      this->unsafe_king_squares |= attack<rook>(square, board.bitboards[none] & ~board.bitboards[color_king]);
     };
     this->attacked_squares |= attack<king>(this->opponent_king_square);
     this->unsafe_king_squares |= attack<king>(this->opponent_king_square);
 
     this->bishop_discoverable = none;
-    bitboard_t bishop_attackers = (board.bitboards[turn_bishop] | board.bitboards[turn_queen]) & bishop_ray[this->opponent_king_square];
+    bitboard_t bishop_attackers = (board.bitboards[color_bishop] | board.bitboards[color_queen]) & bishop_ray[this->opponent_king_square];
     while (bishop_attackers) {
       square_t square = pop_lsb(bishop_attackers);
       this->bishop_discoverable |= attack<bishop>(square, board.bitboards[none]) & this->bishop_checking_squares;
     };
     this->rook_discoverable = none;
-    bitboard_t rook_attackers = (board.bitboards[turn_rook] | board.bitboards[turn_queen]) & rook_ray[this->opponent_king_square];
+    bitboard_t rook_attackers = (board.bitboards[color_rook] | board.bitboards[color_queen]) & rook_ray[this->opponent_king_square];
     while (rook_attackers) {
       square_t square = pop_lsb(rook_attackers);
       this->rook_discoverable |= attack<rook>(square, board.bitboards[none]) & this->rook_checking_squares;

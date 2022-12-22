@@ -1,4 +1,5 @@
 #pragma once
+
 #include <array>
 #include "base.cpp"
 #include "board.cpp"
@@ -13,7 +14,7 @@
 constexpr std::array<bitboard_t, 64> _generate_bishop_ray() {
   // generate bishop rays at compile time
   std::array<bitboard_t, 64> bishop_ray{0ULL};
-  for (square_t square=0; square<64; ++square) {
+  for (square_t square = 0; square < 64; ++square) {
     bishop_ray[square] = 0ULL;
     for (int i = 1; i <= square % 8 && i <= square / 8; i++)
       bishop_ray[square] |= (bitboard(square) >> (9 * i));
@@ -25,15 +26,13 @@ constexpr std::array<bitboard_t, 64> _generate_bishop_ray() {
       bishop_ray[square] |= (bitboard(square) >> (7 * i));
   };
   return bishop_ray;
-
 };
-
 constexpr std::array<bitboard_t, 64> bishop_ray = _generate_bishop_ray();
 
 constexpr std::array<bitboard_t, 64> _generate_rook_ray() {
   // generate rook rays at compile time
   std::array<bitboard_t, 64> rook_ray{0ULL};
-  for (square_t square=0; square<64; ++square) {
+  for (square_t square = 0; square < 64; ++square) {
     rook_ray[square] = 0ULL;
     for (int i = 1; i <= square % 8; i++)
       rook_ray[square] |= (bitboard(square) >> i);
@@ -46,13 +45,12 @@ constexpr std::array<bitboard_t, 64> _generate_rook_ray() {
   };
   return rook_ray;
 };
-
 constexpr std::array<bitboard_t, 64> rook_ray = _generate_rook_ray();
 
 constexpr std::array<std::array<bitboard_t, 4>, 65> _generate_pawn_attack() {
   // generate pawn attack tables at compile time
   std::array<std::array<bitboard_t, 4>, 65> pawn_attack{none};
-  for (square_t square=0; square<64; ++square) {
+  for (square_t square = 0; square < 64; ++square) {
     pawn_attack[square][white] = ((bitboard(square) >> 9) & ~file_h) | ((bitboard(square) >> 7) & ~file_a);
     pawn_attack[square][black] = ((bitboard(square) << 9) & ~file_a) | ((bitboard(square) << 7) & ~file_h);
   };
@@ -60,20 +58,19 @@ constexpr std::array<std::array<bitboard_t, 4>, 65> _generate_pawn_attack() {
   pawn_attack[none_square][black] = none;
   return pawn_attack;
 };
-
 constexpr std::array<std::array<bitboard_t, 4>, 65> pawn_attack = _generate_pawn_attack();
 
 constexpr std::array<bitboard_t, 64> _generate_knight_attack() {
   std::array<bitboard_t, 64> knight_attack{none};
-  for (square_t square=0; square<64; ++square) {
+  for (square_t square = 0; square < 64; ++square) {
     knight_attack[square] = ((bitboard(square) >>  6) & ~file_a & ~file_b & ~rank_1) |
-                     ((bitboard(square) <<  6) & ~file_g & ~file_h & ~rank_8) |
-                     ((bitboard(square) >> 10) & ~file_g & ~file_h & ~rank_1) |
-                     ((bitboard(square) << 10) & ~file_a & ~file_b & ~rank_8) |
-                     ((bitboard(square) >> 15) & ~file_a & ~rank_1 & ~rank_2) |
-                     ((bitboard(square) << 15) & ~file_h & ~rank_7 & ~rank_8) |
-                     ((bitboard(square) >> 17) & ~file_h & ~rank_1 & ~rank_2) |
-                     ((bitboard(square) << 17) & ~file_a & ~rank_7 & ~rank_8);
+                            ((bitboard(square) <<  6) & ~file_g & ~file_h & ~rank_8) |
+                            ((bitboard(square) >> 10) & ~file_g & ~file_h & ~rank_1) |
+                            ((bitboard(square) << 10) & ~file_a & ~file_b & ~rank_8) |
+                            ((bitboard(square) >> 15) & ~file_a & ~rank_1 & ~rank_2) |
+                            ((bitboard(square) << 15) & ~file_h & ~rank_7 & ~rank_8) |
+                            ((bitboard(square) >> 17) & ~file_h & ~rank_1 & ~rank_2) |
+                            ((bitboard(square) << 17) & ~file_a & ~rank_7 & ~rank_8);
   };
   return knight_attack;
 };
@@ -81,7 +78,7 @@ constexpr std::array<bitboard_t, 64> knight_attack = _generate_knight_attack();
 
 constexpr std::array<bitboard_t, 64> _generate_king_attack() {
   std::array<bitboard_t, 64> king_attack{none};
-  for (square_t square=0; square<64; ++square) {
+  for (square_t square = 0; square < 64; ++square) {
     king_attack[square] = ((bitboard(square) >> 1) & ~file_h) |
                    ((bitboard(square) << 1) & ~file_a) |
                    ((bitboard(square) >> 8) & ~rank_1) |
@@ -102,19 +99,19 @@ bitboard_t attack(square_t square, bitboard_t occupancy=none) {
     return pawn_attack[square][white];
   } else if constexpr (piece == black_pawn) {
     return pawn_attack[square][black];
-  } else if constexpr (piece == knight || piece == white_knight || piece == black_knight) {
+  } else if constexpr (piece_type(piece) == knight) {
     return knight_attack[square];
-  } else if constexpr (piece == bishop || piece == white_bishop || piece == black_bishop) {
+  } else if constexpr (piece_type(piece) == bishop) {
     return magic_table[
       bishop_magics[square].offset +
       (((occupancy | bishop_magics[square].mask) * bishop_magics[square].magic_number) >> 55)
     ];
-  } else if constexpr (piece == rook || piece == white_rook || piece == black_rook) {
+  } else if constexpr (piece_type(piece) == rook) {
     return magic_table[
       rook_magics[square].offset +
       (((occupancy | rook_magics[square].mask) * rook_magics[square].magic_number) >> 52)
     ];
-  } else if constexpr (piece == queen || piece == white_queen || piece == black_queen) {
+  } else if constexpr (piece_type(piece) == queen) {
     return (
       magic_table[
         bishop_magics[square].offset +
@@ -125,7 +122,7 @@ bitboard_t attack(square_t square, bitboard_t occupancy=none) {
         (((occupancy | rook_magics[square].mask) * rook_magics[square].magic_number) >> 52)
       ]
     );
-  } else if constexpr (piece == king || piece == white_king || piece == black_king) {
+  } else if constexpr (piece_type(piece) == king) {
     return king_attack[square];
   } else {
     return none;
@@ -195,7 +192,8 @@ bitboard_t attacks(Board& board) {
   constexpr piece_t color_rook = to_color(rook, color);
   constexpr piece_t color_queen = to_color(queen, color);
   constexpr piece_t color_king = to_color(king, color);
-  bitboard_t attacked_squares = multi_pawn_attack<color>(board.bitboards[color_pawn]);
+  bitboard_t attacked_squares = 0;
+  attacked_squares |= multi_pawn_attack<color>(board.bitboards[color_pawn]);
   attacked_squares |= multi_knight_attack(board.bitboards[color_knight]);
   bitboard_t bishop_movers = board.bitboards[color_bishop] | board.bitboards[color_queen];
   while (bishop_movers) {

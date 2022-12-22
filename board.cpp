@@ -3,7 +3,7 @@
 #include <array>
 #include <string>
 #include "base.cpp"
-#include "modules/stack.cpp"
+#include "modules/list.cpp"
 #include "zobrist.cpp"
 
 /*
@@ -31,7 +31,7 @@ public:
   u16_t halfmove_clock;
   u16_t fullmove_clock;
   Zobrist zobrist;
-  stack::Stack<undo_t, MAX_GAME_LENGTH> history;
+  List<undo_t, MAX_GAME_LENGTH> history;
   std::string starting_fen;
 
   // initialize the board
@@ -128,6 +128,7 @@ public:
 
   // convert a uci move to a move_t
   move_t from_uci(std::string uci) {
+    if (uci.length() != 4 && uci.length() != 5) return none;
     square_t from = (uci[0] - 'a') + 8 * (7 - (uci[1] - '1'));
     square_t to = (uci[2] - 'a') + 8 * (7 - (uci[3] - '1'));
     piece_t moved_piece = this->pieces[from];
@@ -140,11 +141,6 @@ public:
     bool enpassant = (piece_type(moved_piece) == pawn) && (to == this->enpassant);
     bool castling = (piece_type(moved_piece) == king) && (((from - to) == 2) || ((from - to) == -2));
     return move(from, to, moved_piece, target_piece, captured_piece, double_pawn_push, enpassant, castling, target_piece != moved_piece, false);
-  };
-
-  // push a uci move to the stack
-  void push_uci(std::string uci) {
-    this->make(this->from_uci(uci));
   };
 
   // place a piece on a square

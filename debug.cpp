@@ -77,7 +77,7 @@ void perft_test_suite(Board& board, std::string epd_file_path) {
   board.set_fen(original_fen);
 };
 
-void print_bitboard(bitboard_t bitboard) {
+void print_bitboard(const bitboard_t& bitboard) {
   std::cout << " +---+---+---+---+---+---+---+---+\n";
   for (int rank = 7; rank >= 0; rank--) {
     for (int file = 0; file < 8; file++) {

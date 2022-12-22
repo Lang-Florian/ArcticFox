@@ -59,14 +59,14 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t discoverable_promoting_free_pawns = free_pawns & pre_promotion_rank & (detail.bishop_discoverable | detail.rook_discoverable);
   while (discoverable_promoting_free_pawns) {
     square_t from = pop_lsb(discoverable_promoting_free_pawns);
-    bitboard_t possible_to = attack<pawn>(from) & discoverable_targets;
+    bitboard_t possible_to = attack<color_pawn>(from) & discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(capture_promotion_move<knight, true>(from, to, board.pieces[to]));
-        moves.push(capture_promotion_move<bishop, true>(from, to, board.pieces[to]));
-        moves.push(capture_promotion_move<rook, true>(from, to, board.pieces[to]));
-        moves.push(capture_promotion_move<queen, true>(from, to, board.pieces[to]));
+        moves.push(move(from, to, color_pawn, color_knight, board.pieces[to], 0, 0, 0, 1, 1));
+        moves.push(move(from, to, color_pawn, color_bishop, board.pieces[to], 0, 0, 0, 1, 1));
+        moves.push(move(from, to, color_pawn, color_rook, board.pieces[to], 0, 0, 0, 1, 1));
+        moves.push(move(from, to, color_pawn, color_queen, board.pieces[to], 0, 0, 0, 1, 1));
       };
     } else {
       moves += popcount(possible_to) << 2;
@@ -76,11 +76,11 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t discoverable_not_promoting_free_pawns = free_pawns & ~pre_promotion_rank & (detail.bishop_discoverable | detail.rook_discoverable);
   while (discoverable_not_promoting_free_pawns) {
     square_t from = pop_lsb(discoverable_not_promoting_free_pawns);
-    bitboard_t possible_to = attack<pawn>(from) & discoverable_targets;
+    bitboard_t possible_to = attack<color_pawn>(from) & discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(piece_move<pawn, true>(from, to, board.pieces[to]));
+        moves.push(move(from, to, color_pawn, color_pawn, board.pieces[to], 0, 0, 0, 0, 1));
       };
     } else {
       moves += popcount(possible_to);
@@ -90,14 +90,14 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t discoverable_promoting_bishop_pinned_pawns = bishop_pinned_pawns & pre_promotion_rank & (detail.bishop_discoverable | detail.rook_discoverable);
   while (discoverable_promoting_bishop_pinned_pawns) {
     square_t from = pop_lsb(discoverable_promoting_bishop_pinned_pawns);
-    bitboard_t possible_to = attack<pawn>(from) & bishop_ray[detail.king_square] & discoverable_targets;
+    bitboard_t possible_to = attack<color_pawn>(from) & bishop_ray[detail.king_square] & discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(capture_promotion_move<knight, true>(from, to, board.pieces[to]));
-        moves.push(capture_promotion_move<bishop, true>(from, to, board.pieces[to]));
-        moves.push(capture_promotion_move<rook, true>(from, to, board.pieces[to]));
-        moves.push(capture_promotion_move<queen, true>(from, to, board.pieces[to]));
+        moves.push(move(from, to, color_pawn, color_knight, board.pieces[to], 0, 0, 0, 1, 1));
+        moves.push(move(from, to, color_pawn, color_bishop, board.pieces[to], 0, 0, 0, 1, 1));
+        moves.push(move(from, to, color_pawn, color_rook, board.pieces[to], 0, 0, 0, 1, 1));
+        moves.push(move(from, to, color_pawn, color_queen, board.pieces[to], 0, 0, 0, 1, 1));
       };
     } else {
       moves += popcount(possible_to) << 2;
@@ -107,11 +107,11 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t discoverable_not_promoting_bishop_pinned_pawns = bishop_pinned_pawns & ~pre_promotion_rank & (detail.bishop_discoverable | detail.rook_discoverable);
   while (discoverable_not_promoting_bishop_pinned_pawns) {
     square_t from = pop_lsb(discoverable_not_promoting_bishop_pinned_pawns);
-    bitboard_t possible_to = attack<pawn>(from) & bishop_ray[detail.king_square] & discoverable_targets;
+    bitboard_t possible_to = attack<color_pawn>(from) & bishop_ray[detail.king_square] & discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(piece_move<pawn, true>(from, to, board.pieces[to]));
+        moves.push(move(from, to, color_pawn, color_pawn, board.pieces[to], 0, 0, 0, 0, 1));
       };
     } else {
       moves += popcount(possible_to);
@@ -125,10 +125,10 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
     bitboard_t bishop_checking_squares = attack<bishop>(detail.opponent_king_square, board.bitboards[none] & ~bitboard(from));
     bitboard_t queen_checking_squares = attack<queen>(detail.opponent_king_square, board.bitboards[none] & ~bitboard(from));
 
-    bitboard_t possible_to_knight = attack<pawn>(from) & non_discoverable_knight_promoting_targets;
-    bitboard_t possible_to_bishop = attack<pawn>(from) & non_discoverable_bishop_promoting_targets;
-    bitboard_t possible_to_rook = attack<pawn>(from) & non_discoverable_rook_promoting_targets;
-    bitboard_t possible_to_queen = attack<pawn>(from) & non_discoverable_queen_promoting_targets;
+    bitboard_t possible_to_knight = attack<color_pawn>(from) & non_discoverable_knight_promoting_targets;
+    bitboard_t possible_to_bishop = attack<color_pawn>(from) & non_discoverable_bishop_promoting_targets;
+    bitboard_t possible_to_rook = attack<color_pawn>(from) & non_discoverable_rook_promoting_targets;
+    bitboard_t possible_to_queen = attack<color_pawn>(from) & non_discoverable_queen_promoting_targets;
     if constexpr ((movetype & check) && !(movetype & capture)) {
       possible_to_bishop &= bishop_checking_squares;
       possible_to_queen &= queen_checking_squares;
@@ -136,19 +136,19 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to_knight) {
         square_t to = pop_lsb(possible_to_knight);
-        moves.push(capture_promotion_move<knight>(from, to, board.pieces[to], bitboard(to) & knight_checking_squares));
+        moves.push(move(from, to, color_pawn, color_knight, board.pieces[to], 0, 0, 0, 1, bitboard(to) & knight_checking_squares));
       };
       while (possible_to_bishop) {
         square_t to = pop_lsb(possible_to_bishop);
-        moves.push(capture_promotion_move<bishop>(from, to, board.pieces[to], bitboard(to) & bishop_checking_squares));
+        moves.push(move(from, to, color_pawn, color_bishop, board.pieces[to], 0, 0, 0, 1, bitboard(to) & bishop_checking_squares));
       };
       while (possible_to_rook) {
         square_t to = pop_lsb(possible_to_rook);
-        moves.push(capture_promotion_move<rook>(from, to, board.pieces[to], bitboard(to) & detail.rook_checking_squares));
+        moves.push(move(from, to, color_pawn, color_rook, board.pieces[to], 0, 0, 0, 1, bitboard(to) & detail.rook_checking_squares));
       };
       while (possible_to_queen) {
         square_t to = pop_lsb(possible_to_queen);
-        moves.push(capture_promotion_move<queen>(from, to, board.pieces[to], bitboard(to) & queen_checking_squares));
+        moves.push(move(from, to, color_pawn, color_queen, board.pieces[to], 0, 0, 0, 1, bitboard(to) & queen_checking_squares));
       };
     } else {
       moves += popcount(possible_to_knight) + popcount(possible_to_bishop) + popcount(possible_to_rook) + popcount(possible_to_queen);
@@ -158,11 +158,11 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t non_discoverable_not_promoting_free_pawns = free_pawns & ~pre_promotion_rank & ~(detail.bishop_discoverable | detail.rook_discoverable);
   while (non_discoverable_not_promoting_free_pawns) {
     square_t from = pop_lsb(non_discoverable_not_promoting_free_pawns);
-    bitboard_t possible_to = attack<pawn>(from) & non_discoverable_targets;
+    bitboard_t possible_to = attack<color_pawn>(from) & non_discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(piece_move<pawn>(from, to, board.pieces[to], bitboard(to) & pawn_checking_squares));
+        moves.push(move(from, to, color_pawn, color_pawn, board.pieces[to], 0, 0, 0, 0, bitboard(to) & pawn_checking_squares));
       };
     } else {
       moves += popcount(possible_to);
@@ -176,10 +176,10 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
     bitboard_t bishop_checking_squares = attack<bishop>(detail.opponent_king_square, board.bitboards[none] & ~bitboard(from));
     bitboard_t queen_checking_squares = attack<queen>(detail.opponent_king_square, board.bitboards[none] & ~bitboard(from));
 
-    bitboard_t possible_to_knight = attack<pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_knight_promoting_targets;
-    bitboard_t possible_to_bishop = attack<pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_bishop_promoting_targets;
-    bitboard_t possible_to_rook = attack<pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_rook_promoting_targets;
-    bitboard_t possible_to_queen = attack<pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_queen_promoting_targets;
+    bitboard_t possible_to_knight = attack<color_pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_knight_promoting_targets;
+    bitboard_t possible_to_bishop = attack<color_pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_bishop_promoting_targets;
+    bitboard_t possible_to_rook = attack<color_pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_rook_promoting_targets;
+    bitboard_t possible_to_queen = attack<color_pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_queen_promoting_targets;
     if constexpr ((movetype & check) && !(movetype & capture)) {
       possible_to_bishop &= bishop_checking_squares;
       possible_to_queen &= queen_checking_squares;
@@ -187,19 +187,19 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to_knight) {
         square_t to = pop_lsb(possible_to_knight);
-        moves.push(capture_promotion_move<knight>(from, to, board.pieces[to], bitboard(to) & knight_checking_squares));
+        moves.push(move(from, to, color_pawn, color_knight, board.pieces[to], 0, 0, 0, 1, bitboard(to) & knight_checking_squares));
       };
       while (possible_to_bishop) {
         square_t to = pop_lsb(possible_to_bishop);
-        moves.push(capture_promotion_move<bishop>(from, to, board.pieces[to], bitboard(to) & bishop_checking_squares));
+        moves.push(move(from, to, color_pawn, color_bishop, board.pieces[to], 0, 0, 0, 1, bitboard(to) & bishop_checking_squares));
       };
       while (possible_to_rook) {
         square_t to = pop_lsb(possible_to_rook);
-        moves.push(capture_promotion_move<rook>(from, to, board.pieces[to], bitboard(to) & detail.rook_checking_squares));
+        moves.push(move(from, to, color_pawn, color_rook, board.pieces[to], 0, 0, 0, 1, bitboard(to) & detail.rook_checking_squares));
       };
       while (possible_to_queen) {
         square_t to = pop_lsb(possible_to_queen);
-        moves.push(capture_promotion_move<queen>(from, to, board.pieces[to], bitboard(to) & queen_checking_squares));
+        moves.push(move(from, to, color_pawn, color_queen, board.pieces[to], 0, 0, 0, 1, bitboard(to) & queen_checking_squares));
       };
     } else {
       moves += popcount(possible_to_knight) + popcount(possible_to_bishop) + popcount(possible_to_rook) + popcount(possible_to_queen);
@@ -209,11 +209,11 @@ void generate_pawn_capture_moves(T& moves, Board& board, detail_t& detail) {
   bitboard_t non_discoverable_not_promoting_bishop_pinned_pawns = bishop_pinned_pawns & ~pre_promotion_rank & ~(detail.bishop_discoverable | detail.rook_discoverable);
   while (non_discoverable_not_promoting_bishop_pinned_pawns) {
     square_t from = pop_lsb(non_discoverable_not_promoting_bishop_pinned_pawns);
-    bitboard_t possible_to = attack<pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_targets;
+    bitboard_t possible_to = attack<color_pawn>(from) & bishop_ray[detail.king_square] & non_discoverable_targets;
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(piece_move<pawn>(from, to, board.pieces[to], bitboard(to) & pawn_checking_squares));
+        moves.push(move(from, to, color_pawn, color_pawn, board.pieces[to], 0, 0, 0, 0, bitboard(to) & pawn_checking_squares));
       };
     } else {
       moves += popcount(possible_to);

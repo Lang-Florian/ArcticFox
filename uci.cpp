@@ -59,7 +59,7 @@ void position(Board& board, std::istringstream& string_stream) {
   };
   if (token == "moves") {
     while (string_stream >> token) {
-      board.push_uci(token);
+      board.make(board.from_uci(token));
     };
   };
 };

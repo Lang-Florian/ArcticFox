@@ -4,6 +4,7 @@
 #include "base.cpp"
 #include "modules/time.cpp"
 #include "board.cpp"
+#include "debug.cpp"
 #include "movegen/movegen.cpp"
 
 /*

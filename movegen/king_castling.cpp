@@ -26,9 +26,9 @@ void generate_king_castling_moves(T& moves, Board& board, detail_t& detail) {
     );
     if constexpr (std::is_same_v<T, move_stack_t>) {
       if (castle_king)
-        moves.push(castling_move<color, true>(F1 & detail.rook_checking_squares_castling));
+        moves.push(move(e1, g1, white_king, white_king, none, false, false, true, false, F1 & detail.rook_checking_squares_castling));
       if (castle_queen)
-        moves.push(castling_move<color, false>(D1 & detail.rook_checking_squares_castling));
+        moves.push(move(e1, c1, white_king, white_king, none, false, false, true, false, D1 & detail.rook_checking_squares_castling));
     } else {
       moves += castle_king + castle_queen;
     };
@@ -47,9 +47,9 @@ void generate_king_castling_moves(T& moves, Board& board, detail_t& detail) {
     );
     if constexpr (std::is_same_v<T, move_stack_t>) {
       if (castle_king)
-        moves.push(castling_move<color, true>(F8 & detail.rook_checking_squares_castling));
+        moves.push(move(e8, g8, black_king, black_king, none, false, false, true, false, F8 & detail.rook_checking_squares_castling));
       if (castle_queen)
-        moves.push(castling_move<color, false>(D8 & detail.rook_checking_squares_castling));
+        moves.push(move(e8, c8, black_king, black_king, none, false, false, true, false, D8 & detail.rook_checking_squares_castling));
     } else {
       moves += castle_king + castle_queen;
     };

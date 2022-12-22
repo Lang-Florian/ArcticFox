@@ -53,7 +53,7 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
     );
     if constexpr (std::is_same_v<T, move_stack_t>) {
       if (enpassant)
-        moves.push(enpassant_move<color>(from, board.enpassant, is_check));
+        moves.push(move(from, board.enpassant, color_pawn, color_pawn, opponent_pawn, 0, 1, 0, 0, is_check));
     } else {
       moves += enpassant;
     };
@@ -85,7 +85,7 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
     );
     if constexpr (std::is_same_v<T, move_stack_t>) {
       if (enpassant)
-        moves.push(enpassant_move<color>(from, board.enpassant, is_check));
+        moves.push(move(from, board.enpassant, color_pawn, color_pawn, opponent_pawn, 0, 1, 0, 0, is_check));
     } else {
       moves += enpassant;
     };

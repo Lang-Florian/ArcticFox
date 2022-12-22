@@ -1,4 +1,5 @@
 #pragma once
+
 #include <array>
 #include <string>
 
@@ -7,7 +8,6 @@
 #define ENGINE_NAME "ArcticFox"
 #define VERSION "0.3"
 #define AUTHOR "N3U1R0N"
-
 
 #define MAX_GAME_LENGTH 512
 #define MAX_MOVE_GENERATION_SIZE 512
@@ -42,7 +42,6 @@
                   " ▒██▓▓▓██▒▓█▓▒  ▒██▓▒▒▓█▓▒▒▒██▒▒▒██▒▒ ▓█▓▒  ▒▓█▓▓██▒▒▓▓██▓  "
 #define STARTPOS "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
-
 // types
 
 typedef unsigned char u8_t;
@@ -65,8 +64,8 @@ typedef u8_t piece_t;
 typedef i16_t score_t;
 typedef u8_t square_t;
 
-#define move_stack_t stack::Stack<move_t, MAX_MOVE_GENERATION_SIZE>
-#define pv_t stack::Stack<move_t, MAX_PV_DEPTH>
+#define move_stack_t List<move_t, MAX_MOVE_GENERATION_SIZE>
+#define pv_t List<move_t, MAX_PV_DEPTH>
 
 #define none 0ULL
 
@@ -87,7 +86,6 @@ typedef u8_t square_t;
 #define to_color(piece, color) (((piece) & 0b11100) | (color))
 #define color(piece) ((piece) & 0b11)
 #define piece_type(piece) ((piece) & 0b11100)
-
 
 // squares
 
@@ -118,8 +116,8 @@ std::string square_to_string(square_t square) {
   return labels[square];
 };
 
-
 // bitboard
+
 enum : bitboard_t {
   A8 = bitboard(a8), B8 = bitboard(b8), C8 = bitboard(c8), D8 = bitboard(d8), E8 = bitboard(e8), F8 = bitboard(f8), G8 = bitboard(g8), H8 = bitboard(h8),
   A7 = bitboard(a7), B7 = bitboard(b7), C7 = bitboard(c7), D7 = bitboard(d7), E7 = bitboard(e7), F7 = bitboard(f7), G7 = bitboard(g7), H7 = bitboard(h7),
@@ -162,7 +160,6 @@ enum : bitboard_t {
 const bitboard_t files[8] = {file_a, file_b, file_c, file_d, file_e, file_f, file_g, file_h};
 const bitboard_t ranks[8] = {rank_1, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8};
 
-
 // castling
 
 enum : castling_t {
@@ -192,8 +189,8 @@ std::string castling_to_string(castling_t castling) {
   return string;
 };
 
-
 // color
+
 enum : color_t {
   white = 0b01,
   black = 0b11,
@@ -211,7 +208,6 @@ std::string color_to_string(color_t color) {
   const std::string labels[] = {"", "w", "", "b"};
   return labels[color];
 };
-
 
 // piece
 
@@ -238,20 +234,7 @@ enum : piece_t {
   king =         0b11000,
 };
 
-constexpr piece_t all_pieces[12] = {
-  white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king,
-  black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king,
-};
-
-constexpr piece_t white_pieces[6] = {
-  white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king,
-};
-
-constexpr piece_t black_pieces[6] = {
-  black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king,
-};
-
-constexpr std::array<piece_t, 6> all_pieces_by_color[4] = {
+constexpr std::array<piece_t, 6> pieces_by_color[4] = {
   {
     pawn, knight, bishop, rook, queen, king,
   },
@@ -302,10 +285,7 @@ std::string piece_to_string(piece_t piece) {
   };
 };
 
-
-// moves
-
-/* some move definitions and macros
+/* some move definitions
 
   MOVE
 
@@ -375,11 +355,8 @@ castling_t removed_castling(move_t move) {
 };
 
 move_t mvv_lva_key(move_t move) {
-  constexpr move_t move_piece_mask = 0b11111 << 19;
-  if (capture(move)) {
-    return move ^ move_piece_mask;
-  };
-  return move;
+  constexpr move_t moved_piece_mask = 0b11111 << 19;
+  return move ^ moved_piece_mask;
 };
 
 struct {
@@ -393,80 +370,6 @@ struct {
     return mvv_lva_key(move1) < mvv_lva_key(move2);
   };
 } reverse_comparison;
-
-template<piece_t piece>
-constexpr move_t piece_move(square_t from, square_t to, piece_t captured_piece, bool check) {
-  constexpr move_t base = (piece << 12) | (piece << 19);
-  return base | (from << 0) | (to << 6) | (captured_piece << 24) | (check << 31);
-};
-
-template<piece_t piece, bool check>
-constexpr move_t piece_move(square_t from, square_t to, piece_t captured_piece) {
-  constexpr move_t base = (piece << 12) | (piece << 19) | (check << 31);
-  return base | (from << 0) | (to << 6) | (captured_piece << 24);
-};
-
-template<color_t color, bool king_side>
-constexpr move_t castling_move(bool check) {
-  constexpr move_t white_king_side_base = (e1 << 0) | (g1 << 6) | (white_king << 12) | (white_king << 19) | (1 << 30);
-  constexpr move_t white_queen_side_base = (e1 << 0) | (c1 << 6) | (white_king << 12) | (white_king << 19) | (1 << 30);
-  constexpr move_t black_king_side_base = (e8 << 0) | (g8 << 6) | (black_king << 12) | (black_king << 19) | (1 << 30);
-  constexpr move_t black_queen_side_base = (e8 << 0) | (c8 << 6) | (black_king << 12) | (black_king << 19) | (1 << 30);
-  if constexpr (color == white) {
-    if constexpr (king_side) {
-      return white_king_side_base | (check << 31);
-    } else {
-      return white_queen_side_base | (check << 31);
-    };
-  } else {
-    if constexpr (king_side) {
-      return black_king_side_base | (check << 31);
-    } else {
-      return black_queen_side_base | (check << 31);
-    };
-  };
-};
-
-template<piece_t piece>
-constexpr move_t capture_promotion_move(square_t from, square_t to, piece_t captured_piece, bool check) {
-  constexpr color_t color = color(piece);
-  constexpr piece_t color_pawn = to_color(pawn, color);
-  constexpr move_t base = (piece << 12) | (color_pawn << 19) | (1 << 29);
-  return base | (from << 0) | (to << 6) | (captured_piece << 24) | (check << 31);
-};
-
-template<piece_t piece, bool check>
-constexpr move_t capture_promotion_move(square_t from, square_t to, piece_t captured_piece) {
-  constexpr color_t color = color(piece);
-  constexpr piece_t color_pawn = to_color(pawn, color);
-  constexpr move_t base = (piece << 12) | (color_pawn << 19) | (1 << 29) | (check << 31);
-  return base | (from << 0) | (to << 6) | (captured_piece << 24);
-};
-
-template<piece_t piece>
-constexpr move_t push_promotion_move(square_t from, square_t to, bool check) {
-  constexpr color_t color = color(piece);
-  constexpr piece_t color_pawn = to_color(pawn, color);
-  constexpr move_t base = (piece << 12) | (color_pawn << 19) | (none << 24) | (1 << 29);
-  return base | (from << 0) | (to << 6) | (check << 31);
-};
-
-template<color_t color, bool double_pawn_push>
-constexpr move_t push_move(square_t from, square_t to, bool check) {
-  constexpr piece_t color_pawn = to_color(pawn, color);
-  constexpr move_t base = (color_pawn << 12) | (color_pawn << 19) | (none << 24) | (double_pawn_push << 17);
-  return base | (from << 0) | (to << 6) | (check << 31);
-};
-
-template<color_t color>
-constexpr move_t enpassant_move(square_t from, square_t to, bool check) {
-  constexpr color_t opponent = opponent(color);
-  constexpr piece_t color_pawn = to_color(pawn, color);
-  constexpr piece_t opponent_pawn = to_color(pawn, opponent);
-  constexpr move_t base = (color_pawn << 12) | (color_pawn << 19) | (opponent_pawn << 24) | (1 << 18);
-  return base | (from << 0) | (to << 6) | (check << 31);
-};
-
 
 // movetype
 

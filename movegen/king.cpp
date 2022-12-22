@@ -11,13 +11,13 @@
 template <color_t turn, movetype_t movetype, typename T>
 void generate_king_moves(T& moves, Board& board, detail_t& detail) {
   constexpr color_t opponent = opponent(turn);
-  constexpr piece_t turn_king = to_color(king, turn);
+  constexpr piece_t color_king = to_color(king, turn);
 
   bitboard_t checking_squares = none;
 
-  if (board.bitboards[turn_king] & detail.bishop_discoverable)
+  if (board.bitboards[color_king] & detail.bishop_discoverable)
     checking_squares |= ~bishop_ray[detail.opponent_king_square];
-  if (board.bitboards[turn_king] & detail.rook_discoverable)
+  if (board.bitboards[color_king] & detail.rook_discoverable)
     checking_squares |= ~rook_ray[detail.opponent_king_square];
   
   bitboard_t targets = none;
@@ -33,7 +33,7 @@ void generate_king_moves(T& moves, Board& board, detail_t& detail) {
   if constexpr (std::is_same_v<T, move_stack_t>) {
     while (possible_to) {
       square_t to = pop_lsb(possible_to);
-      moves.push(piece_move<king>(detail.king_square, to, board.pieces[to], bitboard(to) & checking_squares));
+      moves.push(move(detail.king_square, to, color_king, color_king, board.pieces[to], 0, 0, 0, 0, bitboard(to) & checking_squares));
     };
   } else {
     moves += popcount(possible_to);

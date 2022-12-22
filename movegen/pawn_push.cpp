@@ -151,22 +151,22 @@ void generate_pawn_push_moves(T& moves, Board& board, detail_t& detail) {
     while (pushable_pawns) {
       square_t from = pop_lsb(pushable_pawns);
       square_t to = from + push_offset;
-      moves.push(push_move<color, false>(from, to, (bitboard(from) & discoverable) || (bitboard(to) & pawn_checking_squares)));
+      moves.push(move(from, to, color_pawn, color_pawn, none, 0, 0, 0, 0, (bitboard(from) & discoverable) || (bitboard(to) & pawn_checking_squares)));
     };
     while (doublepushable_pawns) {
       square_t from = pop_lsb(doublepushable_pawns);
       square_t to = from + doublepush_offset;
-      moves.push(push_move<color, true>(from, to, (bitboard(from) & discoverable) || (bitboard(to) & pawn_checking_squares)));
+      moves.push(move(from, to, color_pawn, color_pawn, none, 1, 0, 0, 0, (bitboard(from) & discoverable) || (bitboard(to) & pawn_checking_squares)));
     };
     while (knight_promoting_pawns) {
       square_t from = pop_lsb(knight_promoting_pawns);
       square_t to = from + push_offset;
-      moves.push(push_promotion_move<knight>(from, to, (bitboard(from) & discoverable) || (bitboard(to) & knight_checking_squares)));
+      moves.push(move(from, to, color_pawn, color_knight, none, 0, 0, 0, 1, (bitboard(from) & discoverable) || (bitboard(to) & knight_checking_squares)));
     };
     while (bishop_promoting_pawns) {
       square_t from = pop_lsb(bishop_promoting_pawns);
       square_t to = from + push_offset;
-      moves.push(push_promotion_move<bishop>(from, to, (bitboard(from) & discoverable) || (bitboard(to) & detail.bishop_checking_squares)));
+      moves.push(move(from, to, color_pawn, color_bishop, none, 0, 0, 0, 1, (bitboard(from) & discoverable) || (bitboard(to) & detail.bishop_checking_squares)));
     };
     while (rook_promoting_pawns) {
       square_t from = pop_lsb(rook_promoting_pawns);
@@ -175,10 +175,10 @@ void generate_pawn_push_moves(T& moves, Board& board, detail_t& detail) {
       bool is_check = (bitboard(from) & discoverable) || (bitboard(to) & rook_checking_squares);
       if constexpr (movetype == check) {
         if (is_check) {
-          moves.push(push_promotion_move<rook>(from, to, is_check));
+          moves.push(move(from, to, color_pawn, color_rook, none, 0, 0, 0, 1, is_check));
         };
       } else {
-        moves.push(push_promotion_move<rook>(from, to, is_check));
+        moves.push(move(from, to, color_pawn, color_rook, none, 0, 0, 0, 1, is_check));
       };
     };
     while (queen_promoting_pawns) {
@@ -188,10 +188,10 @@ void generate_pawn_push_moves(T& moves, Board& board, detail_t& detail) {
       bool is_check = (bitboard(from) & discoverable) || (bitboard(to) & queen_checking_squares);
       if constexpr (movetype == check) {
         if (is_check) {
-          moves.push(push_promotion_move<queen>(from, to, is_check));
+          moves.push(move(from, to, color_pawn, color_queen, none, 0, 0, 0, 1, is_check));
         };
       } else {
-        moves.push(push_promotion_move<queen>(from, to, is_check));
+        moves.push(move(from, to, color_pawn, color_queen, none, 0, 0, 0, 1, is_check));
       };
     };
   } else {

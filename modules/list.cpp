@@ -1,23 +1,16 @@
-#ifdef __INTELLISENSE__
-  #pragma diag_suppress 28
-#endif
-#ifndef __STACK__MODULE__ 
-#define __STACK__MODULE__
-
+#pragma once
 
 #include <algorithm>
 #include <numeric>
 
-
-namespace stack {
 template <typename T, int MAX_SIZE>
-class Stack {
+class List {
 private:
   T array[MAX_SIZE];
   int _size_;
 
 public:
-  Stack() {
+  List() {
     this->_size_ = 0;
   };
 
@@ -34,7 +27,8 @@ public:
   };
 
   void push(T value) {
-    this->array[this->_size_++] = value;
+    this->array[this->_size_] = value;
+    ++this->_size_;
   };
 
   T pop() {
@@ -74,19 +68,15 @@ public:
   };
 
   template <int OTHER_MAX_SIZE>
-  void append(Stack<T, OTHER_MAX_SIZE> other) {
+  void append(List<T, OTHER_MAX_SIZE> other) {
     std::copy(other.begin(), other.end(), this->array + this->_size_);
     this->_size_ += other.size();
   };
 
-  Stack<T, MAX_SIZE> copy() {
-    Stack<T, MAX_SIZE> copy;
+  List<T, MAX_SIZE> copy() {
+    List<T, MAX_SIZE> copy;
     std::copy(this->array, this->array + this->_size_, copy.array);
     copy._size_ = this->_size_;
     return copy;
   };
 };
-};
-
-
-#endif

@@ -33,7 +33,7 @@ void generate_queen_moves(T& moves, Board& board, detail_t& detail) {
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(piece_move<queen>(from, to, board.pieces[to], bitboard(to) & checking_squares));
+        moves.push(move(from, to, color_queen, color_queen, board.pieces[to], 0, 0, 0, 0, bitboard(to) & checking_squares));
       };
     } else {
       moves += popcount(possible_to);
@@ -47,7 +47,7 @@ void generate_queen_moves(T& moves, Board& board, detail_t& detail) {
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(piece_move<queen>(from, to, board.pieces[to], bitboard(to) & checking_squares));
+        moves.push(move(from, to, color_queen, color_queen, board.pieces[to], 0, 0, 0, 0, bitboard(to) & checking_squares));
       };
     } else {
       moves += popcount(possible_to);
@@ -61,7 +61,7 @@ void generate_queen_moves(T& moves, Board& board, detail_t& detail) {
     if constexpr (std::is_same_v<T, move_stack_t>) {
       while (possible_to) {
         square_t to = pop_lsb(possible_to);
-        moves.push(piece_move<queen>(from, to, board.pieces[to], bitboard(to) & checking_squares));
+        moves.push(move(from, to, color_queen, color_queen, board.pieces[to], 0, 0, 0, 0, bitboard(to) & checking_squares));
       };
     } else {
       moves += popcount(possible_to);

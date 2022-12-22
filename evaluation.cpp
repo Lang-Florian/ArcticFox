@@ -197,8 +197,8 @@ u64_t king_safety(Board& board, bitboard_t opponent_attacks) {
 template <color_t color>
 score_t evaluate(Board& board) {
   constexpr color_t opponent = opponent(color);
-  constexpr std::array<piece_t, 6> pieces = all_pieces_by_color[color];
-  constexpr std::array<piece_t, 6> opponent_pieces = all_pieces_by_color[opponent];
+  constexpr std::array<piece_t, 6> color_pieces = pieces_by_color[color];
+  constexpr std::array<piece_t, 6> opponent_pieces = pieces_by_color[opponent];
 
   u64_t legal_moves = generate<color, legal, u64_t>(board);
   if (legal_moves == 0) {
@@ -223,7 +223,7 @@ score_t evaluate(Board& board) {
   score += (king_safety<color>(board, opponent_attacks) - king_safety<opponent>(board, color_attacks)) << king_safety_weight;
 
   u8_t endgame_factor = get_endgame_factor(board);
-  for (piece_t piece : pieces) {
+  for (piece_t piece : color_pieces) {
     bitboard_t piece_bitboard = board.bitboards[piece];
     while (piece_bitboard) {
       square_t square = pop_lsb(piece_bitboard);

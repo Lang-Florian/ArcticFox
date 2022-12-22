@@ -16,15 +16,15 @@ public:
 
   // initialize the tables with random values
   Zobrist() {
-    for (square_t square = 0; square < none_square; square++) {
-      for (auto piece : all_pieces) {
+    for (square_t square = 0; square < 64; square++) {
+      for (piece_t piece = 0; piece < 32; piece++) {
         this->piece_hash[piece][square] = random<hash_t>();
       };
     };
     for (castling_t castling = 0; castling < 16; castling++) {
       this->castling_hash[castling] = random<hash_t>();
     };
-    for (square_t square = 0; square < none_square; square++) {
+    for (square_t square = 0; square < 64; square++) {
       this->enpassant_hash[square] = random<hash_t>();
     };
     this->turn_hash = random<hash_t>();

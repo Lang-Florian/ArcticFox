@@ -1,5 +1,5 @@
-#pragma diag_suppress 28
 #pragma once
+#pragma diag_suppress 28
 
 #include <array>
 #include "base.cpp"

@@ -296,7 +296,7 @@ public:
       };
     } else if (castling(move)) {
       this->remove_piece<color>(to - (to > from) * 2 + 1);
-      this->place_piece<color>(rook, to + (to > from) * 3 - 2);
+      this->place_piece<color>(color_rook, to + (to > from) * 3 - 2);
     } else if (capture(move)) {
       this->place_piece<opponent>(captured_piece(move), to);
     };

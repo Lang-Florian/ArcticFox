@@ -72,7 +72,7 @@ void generate_rook_moves(T& moves, Board& board, detail_t& detail) {
     };
   };
 
-  bitboard_t bishop_discoverable_free_rooks = board.bitboards[rook] & ~detail.bishop_pinned & ~detail.rook_pinned & detail.bishop_discoverable;
+  bitboard_t bishop_discoverable_free_rooks = board.bitboards[color_rook] & ~detail.bishop_pinned & ~detail.rook_pinned & detail.bishop_discoverable;
   while (bishop_discoverable_free_rooks) {
     square_t from = pop_lsb(bishop_discoverable_free_rooks);
     bitboard_t possible_to = attack<rook>(from, board.bitboards[none]) & bishop_discoverable_targets;

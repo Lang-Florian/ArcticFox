@@ -22,7 +22,7 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
     enpassant_pawn = (bitboard(board.enpassant) >> 8) & rank_4;
   };
   // check if en passant will always be a check
-  bool is_always_check = (detail.bishop_discoverable & enpassant_pawn) || (board.bitboards[opponent_king] & attack<pawn>(board.enpassant));
+  bool is_always_check = (detail.bishop_discoverable & enpassant_pawn) || (board.bitboards[opponent_king] & attack<color_pawn>(board.enpassant));
   // generate en passant moves
   bitboard_t bishop_pinned_pawns = (
     board.bitboards[color_pawn] &

@@ -1,20 +1,18 @@
 #pragma once
 
 #include <type_traits>
-#include "../base.cpp"
 #include "../attack.cpp"
+#include "../base.cpp"
 #include "../board.cpp"
 #include "detail.cpp"
 
-
-// generate knight moves
-template <color_t turn, movetype_t movetype, typename T>
+template <color_t color, movetype_t movetype, typename T>
 void generate_knight_moves(T& moves, Board& board, detail_t& detail) {
-  constexpr color_t opponent = opponent(turn);
-  constexpr piece_t color_knight = to_color(knight, turn);
-
+  constexpr color_t opponent = opponent(color);
+  constexpr piece_t color_knight = to_color(knight, color);
+  // get the squares that would give direct checks
   bitboard_t checking_squares = attack<knight>(detail.opponent_king_square);
-
+  // define the targets for the types of knights
   bitboard_t non_discoverable_targets = none;
   bitboard_t discoverable_targets = none;
   if constexpr (movetype & quiet)
@@ -27,9 +25,9 @@ void generate_knight_moves(T& moves, Board& board, detail_t& detail) {
     non_discoverable_targets |= board.bitboards[opponent];
     discoverable_targets |= board.bitboards[opponent];
   };
-  non_discoverable_targets &= detail.evasion_targets & ~board.bitboards[turn];
-  discoverable_targets &= detail.evasion_targets & ~board.bitboards[turn];
-
+  non_discoverable_targets &= detail.evasion_targets & ~board.bitboards[color];
+  discoverable_targets &= detail.evasion_targets & ~board.bitboards[color];
+  // generate knight moves
   bitboard_t non_discoverable_free_knights = board.bitboards[color_knight] & ~detail.bishop_pinned & ~detail.rook_pinned & ~(detail.bishop_discoverable | detail.rook_discoverable);
   while (non_discoverable_free_knights) {
     square_t from = pop_lsb(non_discoverable_free_knights);
@@ -43,7 +41,6 @@ void generate_knight_moves(T& moves, Board& board, detail_t& detail) {
       moves += popcount(possible_to);
     };
   };
-
   bitboard_t discoverable_free_knights = board.bitboards[color_knight] & ~detail.bishop_pinned & ~detail.rook_pinned & (detail.bishop_discoverable | detail.rook_discoverable);
   while (discoverable_free_knights) {
     square_t from = pop_lsb(discoverable_free_knights);

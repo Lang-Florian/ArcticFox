@@ -1,13 +1,11 @@
 #pragma once
 
 #include <type_traits>
-#include "../base.cpp"
 #include "../attack.cpp"
+#include "../base.cpp"
 #include "../board.cpp"
 #include "detail.cpp"
 
-
-// generate pawn enpassant moves
 template <color_t color, movetype_t movetype, typename T>
 void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
   constexpr color_t opponent = opponent(color);
@@ -16,16 +14,16 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
   constexpr piece_t color_queen = to_color(queen, color);
   constexpr piece_t opponent_pawn = to_color(pawn, opponent);
   constexpr piece_t opponent_king = to_color(king, opponent);
-
+  // get the pawn that can be captured en passant
   bitboard_t enpassant_pawn;
   if constexpr (color == white) {
     enpassant_pawn = (bitboard(board.enpassant) << 8) & rank_5;
   } else {
     enpassant_pawn = (bitboard(board.enpassant) >> 8) & rank_4;
   };
-
+  // check if en passant will always be a check
   bool is_always_check = (detail.bishop_discoverable & enpassant_pawn) || (board.bitboards[opponent_king] & attack<pawn>(board.enpassant));
-
+  // generate en passant moves
   bitboard_t bishop_pinned_pawns = (
     board.bitboards[color_pawn] &
     attack<opponent_pawn>(board.enpassant) &
@@ -42,7 +40,7 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
       (attack<rook>(detail.opponent_king_square, (board.bitboards[none] & ~bitboard(from) & ~enpassant_pawn) | bitboard(board.enpassant)) & (board.bitboards[color_rook] | board.bitboards[color_queen]))
     );
     bool enpassant = (
-      (bishop_ray[detail.king_square] & bitboard(board.enpassant)) &&
+      (bishop_ray[detail.color_king_square] & bitboard(board.enpassant)) &&
       (
         (detail.evasion_targets & bitboard(board.enpassant)) ||
         (enpassant_pawn == detail.checkers)
@@ -58,7 +56,6 @@ void generate_pawn_enpassant_moves(T& moves, Board& board, detail_t& detail) {
       moves += enpassant;
     };
   };
-
   bitboard_t free_pawns = (
     board.bitboards[color_pawn] &
     attack<opponent_pawn>(board.enpassant) &

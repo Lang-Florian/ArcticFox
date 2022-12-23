@@ -69,6 +69,10 @@ void perft_test_suite(Board& board, std::string epd_file_path) {
       max_mnps = std::max(max_mnps, perft_result.mnps);
     };
     std::cout << "\n";
+    std::cout << "Currently correct: " << correct_positions << "/" << total_positions << "\n";
+    std::cout << "Current time: " << total_time << " s" << "\n";
+    std::cout << "Current MNps: " << (total_nodes / total_time) * 1e-6 << "\n";
+    std::cout << "Current max MNps: " << max_mnps << "\n";
   };
   std::cout << "Correct: " << correct_positions << "/" << total_positions << "\n";
   std::cout << "Total time: " << total_time << " s" << "\n";

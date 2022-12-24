@@ -13,6 +13,8 @@
 #define MAX_MOVE_GENERATION_SIZE 512
 #define MAX_PV_DEPTH 32
 #define MAX_QSEARCH_DEPTH 32
+#define ZOBRIST_SEED 0
+#define LOG_FILE "arcticfox.log"
 #define ASCII_ART "                        ▒  ▒▒▒                              \n"\
                   "                       ▒▒▒▒▓▓█▓▒▒▒                          \n"\
                   "                       ▒▓▒▒▒▒▓▓▓▒▒▒                         \n"\

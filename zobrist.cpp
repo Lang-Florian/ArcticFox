@@ -4,6 +4,12 @@
 #include "modules/random.cpp"
 #include "base.cpp"
 
+/***********************************************************************
+ * 
+ * Module to generate and access everything zobrist hash related.
+ *
+***********************************************************************/
+
 class Zobrist {
 private:
   std::array<std::array<hash_t, 64>, 32> piece_hash{0ULL};
@@ -16,6 +22,7 @@ public:
 
   // initialize the tables with random values
   Zobrist() {
+    seed(ZOBRIST_SEED);
     for (square_t square = 0; square < 64; square++) {
       for (piece_t piece = 0; piece < 32; piece++) {
         this->piece_hash[piece][square] = random<hash_t>();

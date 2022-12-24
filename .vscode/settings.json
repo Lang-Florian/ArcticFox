@@ -63,6 +63,7 @@
     "typeinfo": "cpp",
     "valarray": "cpp",
     "bitset": "cpp",
-    "future": "cpp"
+    "future": "cpp",
+    "ranges": "cpp"
   }
 }

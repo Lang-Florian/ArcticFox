@@ -51,7 +51,7 @@ public:
     return std::find(this->array, this->array + this->_size_, value) != this->array + this->_size_;
   };
 
-  bool contains_sorted(T value, auto comparator) {
+  bool contains(T value, auto comparator) {
     return std::binary_search(this->array, this->array + this->_size_, value, comparator);
   };
 

@@ -4,11 +4,11 @@
 #include "../base.cpp"
 #include "../board.cpp"
 
-/*
-
-  Module for more detailed information about the board.
-
-*/
+/***********************************************************************
+ * 
+ * Module to generate more detailed information about the board.
+ * 
+***********************************************************************/
 
 struct detail_t {
   square_t color_king_square;

@@ -11,8 +11,8 @@
  * 
 ***********************************************************************/
 
+// generate bishop rays at compile time
 constexpr std::array<bitboard_t, 64> _generate_bishop_ray() {
-  // generate bishop rays at compile time
   std::array<bitboard_t, 64> bishop_ray{0ULL};
   for (square_t square = 0; square < 64; ++square) {
     bishop_ray[square] = 0ULL;
@@ -29,8 +29,8 @@ constexpr std::array<bitboard_t, 64> _generate_bishop_ray() {
 };
 constexpr std::array<bitboard_t, 64> bishop_ray = _generate_bishop_ray();
 
+// generate rook rays at compile time
 constexpr std::array<bitboard_t, 64> _generate_rook_ray() {
-  // generate rook rays at compile time
   std::array<bitboard_t, 64> rook_ray{0ULL};
   for (square_t square = 0; square < 64; ++square) {
     rook_ray[square] = 0ULL;
@@ -47,8 +47,8 @@ constexpr std::array<bitboard_t, 64> _generate_rook_ray() {
 };
 constexpr std::array<bitboard_t, 64> rook_ray = _generate_rook_ray();
 
+// generate pawn attack tables at compile time
 constexpr std::array<std::array<bitboard_t, 4>, 65> _generate_pawn_attack() {
-  // generate pawn attack tables at compile time
   std::array<std::array<bitboard_t, 4>, 65> pawn_attack{none};
   for (square_t square = 0; square < 64; ++square) {
     pawn_attack[square][white] = ((bitboard(square) >> 9) & ~file_h) | ((bitboard(square) >> 7) & ~file_a);
@@ -60,6 +60,7 @@ constexpr std::array<std::array<bitboard_t, 4>, 65> _generate_pawn_attack() {
 };
 constexpr std::array<std::array<bitboard_t, 4>, 65> pawn_attack = _generate_pawn_attack();
 
+// generate knight attack tables at compile time
 constexpr std::array<bitboard_t, 64> _generate_knight_attack() {
   std::array<bitboard_t, 64> knight_attack{none};
   for (square_t square = 0; square < 64; ++square) {
@@ -76,23 +77,24 @@ constexpr std::array<bitboard_t, 64> _generate_knight_attack() {
 };
 constexpr std::array<bitboard_t, 64> knight_attack = _generate_knight_attack();
 
+// generate king attack tables at compile time
 constexpr std::array<bitboard_t, 64> _generate_king_attack() {
   std::array<bitboard_t, 64> king_attack{none};
   for (square_t square = 0; square < 64; ++square) {
     king_attack[square] = ((bitboard(square) >> 1) & ~file_h) |
-                   ((bitboard(square) << 1) & ~file_a) |
-                   ((bitboard(square) >> 8) & ~rank_1) |
-                   ((bitboard(square) << 8) & ~rank_8) |
-                   ((bitboard(square) >> 7) & ~file_a & ~rank_1) |
-                   ((bitboard(square) << 7) & ~file_h & ~rank_8) |
-                   ((bitboard(square) >> 9) & ~file_h & ~rank_1) |
-                   ((bitboard(square) << 9) & ~file_a & ~rank_8);
+                          ((bitboard(square) << 1) & ~file_a) |
+                          ((bitboard(square) >> 8) & ~rank_1) |
+                          ((bitboard(square) << 8) & ~rank_8) |
+                          ((bitboard(square) >> 7) & ~file_a & ~rank_1) |
+                          ((bitboard(square) << 7) & ~file_h & ~rank_8) |
+                          ((bitboard(square) >> 9) & ~file_h & ~rank_1) |
+                          ((bitboard(square) << 9) & ~file_a & ~rank_8);
   };
   return king_attack;
 };
 constexpr std::array<bitboard_t, 64> king_attack = _generate_king_attack();
 
-// access to all the piece attacks
+// access to all the piece attack tables
 template <piece_t piece>
 bitboard_t attack(square_t square, bitboard_t occupancy=none) {
   if constexpr (piece == white_pawn) {
@@ -129,15 +131,16 @@ bitboard_t attack(square_t square, bitboard_t occupancy=none) {
   };
 };
 
+// generate multi pawn attacks at runtime
 template<color_t color>
 bitboard_t multi_pawn_attack(bitboard_t pawns) {
-  if constexpr (color == white) {
+  if constexpr (color == white)
     return ((pawns >> 9) & ~file_h) | ((pawns >> 7) & ~file_a);
-  } else {
+  else
     return ((pawns << 9) & ~file_a) | ((pawns << 7) & ~file_h);
-  };
 };
 
+// generate multi knight attacks at runtime
 bitboard_t multi_knight_attack(bitboard_t knights) {
   return (
     ((knights >>  6) & ~file_a & ~file_b & ~rank_1) |

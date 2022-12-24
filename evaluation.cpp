@@ -1,15 +1,15 @@
 #pragma once
 
 #include <string>
+#include "movegen/movegen.cpp"
 #include "base.cpp"
 #include "board.cpp"
-#include "movegen/movegen.cpp"
 
-/*
-
-  Module for the board evaluation heuristic.
-
-*/
+/***********************************************************************
+ * 
+ * Module for the evaluation heuristic.
+ * 
+***********************************************************************/
 
 enum : score_t {
   inf =       32767,
@@ -18,6 +18,7 @@ enum : score_t {
   max_eval =  10000,
 };
 
+// convert score to string
 std::string to_string(score_t score) {
   if (score == inf)        return "oo";
   if (score == -inf)       return "-oo";
@@ -29,6 +30,7 @@ std::string to_string(score_t score) {
   return std::to_string(score);
 };
 
+// add depth to score
 score_t add_depth(score_t score) {
   return score = (
     ((score > max_eval) && (score != inf)) -
@@ -37,6 +39,7 @@ score_t add_depth(score_t score) {
   );
 };
 
+// remove depth from score
 score_t remove_depth(score_t score) {
   return score = (
     ((score < -max_eval) && (score != -inf)) -
@@ -45,7 +48,8 @@ score_t remove_depth(score_t score) {
   );
 };
 
-constexpr score_t initial_score = 30;
+// define some weights
+constexpr score_t initial_score = 20;
 constexpr u8_t check_weight = 50;
 constexpr u8_t inverse_mobility_weight = 2;
 constexpr u8_t inverse_attack_weight = 3;
@@ -128,38 +132,39 @@ constexpr score_t king_value_endgame[64] = {
   -50, -30, -30, -30, -30, -30, -30, -50,
 };
 
+// evaluate a piece on a given square
 template <piece_t piece>
 score_t value(square_t square, u8_t endgame_factor=0) {
-  if constexpr (piece == white_pawn) {
+  if constexpr (piece == white_pawn)
     return pawn_value[square];
-  } else if constexpr (piece == black_pawn) {
+  else if constexpr (piece == black_pawn)
     return pawn_value[square ^ 56];
-  } else if constexpr (piece == white_knight) {
+  else if constexpr (piece == white_knight)
     return knight_value[square];
-  } else if constexpr (piece == black_knight) {
+  else if constexpr (piece == black_knight)
     return knight_value[square ^ 56];
-  } else if constexpr (piece == white_bishop) {
+  else if constexpr (piece == white_bishop)
     return bishop_value[square];
-  } else if constexpr (piece == black_bishop) {
+  else if constexpr (piece == black_bishop)
     return bishop_value[square ^ 56];
-  } else if constexpr (piece == white_rook) {
+  else if constexpr (piece == white_rook)
     return rook_value[square];
-  } else if constexpr (piece == black_rook) {
+  else if constexpr (piece == black_rook)
     return rook_value[square ^ 56];
-  } else if constexpr (piece == white_queen) {
+  else if constexpr (piece == white_queen)
     return queen_value[square];
-  } else if constexpr (piece == black_queen) {
+  else if constexpr (piece == black_queen)
     return queen_value[square ^ 56];
-  } else if constexpr (piece == white_king) {
+  else if constexpr (piece == white_king)
     return ((endgame_factor * king_value_endgame[square]) >> 8) +
            (((256 - endgame_factor) * king_value_middlegame[square]) >> 8);
-  } else if constexpr (piece == black_king) {
+  else if constexpr (piece == black_king)
     return ((endgame_factor * king_value_endgame[square ^ 56]) >> 8) +
            (((256 - endgame_factor) * king_value_middlegame[square ^ 56]) >> 8);
-  };
   return 0;
 };
 
+// jump table for piece values
 constexpr score_t (*(value_jump_table[32]))(square_t, u8_t) = {
   value< 0>, value< 1>, value< 2>, value< 3>, value< 4>, value< 5>, value< 6>, value< 7>,
   value< 8>, value< 9>, value<10>, value<11>, value<12>, value<13>, value<14>, value<15>,
@@ -167,6 +172,7 @@ constexpr score_t (*(value_jump_table[32]))(square_t, u8_t) = {
   value<24>, value<25>, value<26>, value<27>, value<28>, value<29>, value<30>, value<31>,
 };
 
+// calculate the endgame factor
 u8_t get_endgame_factor(Board& board) {
   return (
     (
@@ -179,64 +185,55 @@ u8_t get_endgame_factor(Board& board) {
   ) >> 1;
 };
 
+// check if a given color is in check
 template<color_t color>
 bool is_check(Board& board) {
   constexpr color_t opponent = opponent(color);
   constexpr piece_t color_king = to_color(king, color);
-  square_t king_square = get_lsb(board.bitboards[color_king]);
-  return attackers<opponent>(board, king_square);
+  square_t color_king_square = get_lsb(board.bitboards[color_king]);
+  return attackers<opponent>(board, color_king_square);
 };
 
+// calculate the king safety score
 template<color_t color>
 u64_t king_safety(Board& board, bitboard_t opponent_attacks) {
   constexpr piece_t color_king = to_color(king, color);
-  square_t king_square = get_lsb(board.bitboards[color_king]);
-  return popcount(attack<king>(king_square) & ~opponent_attacks);
+  square_t color_king_square = get_lsb(board.bitboards[color_king]);
+  return popcount(attack<king>(color_king_square) & ~opponent_attacks);
 };
 
+// evaluate a board
 template <color_t color>
 score_t evaluate(Board& board) {
   constexpr color_t opponent = opponent(color);
-  constexpr std::array<piece_t, 6> color_pieces = pieces_by_color[color];
-  constexpr std::array<piece_t, 6> opponent_pieces = pieces_by_color[opponent];
-
+  constexpr std::array<piece_t, 6> pieces = pieces_by_color[none];
   u64_t legal_moves = generate<color, legal, u64_t>(board);
   if (legal_moves == 0) {
-    if (is_check<color>(board)) {
+    if (is_check<color>(board))
       return -checkmate;
-    } else {
+    else
       return draw;
-    };
   };
-
   score_t score = initial_score;
-
   score -= is_check<color>(board) * check_weight;
-
   u64_t opponent_legal_moves = generate<opponent, legal, u64_t>(board);
   score += (popcount(legal_moves) - popcount(opponent_legal_moves)) >> inverse_mobility_weight;
-
   bitboard_t color_attacks = attacks<color>(board);
   bitboard_t opponent_attacks = attacks<opponent>(board);
   score += (popcount(color_attacks) - popcount(opponent_attacks)) >> inverse_attack_weight; 
-
   score += (king_safety<color>(board, opponent_attacks) - king_safety<opponent>(board, color_attacks)) << king_safety_weight;
-
   u8_t endgame_factor = get_endgame_factor(board);
-  for (piece_t piece : color_pieces) {
-    bitboard_t piece_bitboard = board.bitboards[piece];
-    while (piece_bitboard) {
-      square_t square = pop_lsb(piece_bitboard);
-      score += value_jump_table[piece](square, endgame_factor);
+  for (piece_t piece : pieces) {
+    bitboard_t color_piece_bitboard = board.bitboards[to_color(piece, color)];
+    bitboard_t opponent_piece_bitboard = board.bitboards[to_color(piece, opponent)];
+    while (color_piece_bitboard) {
+      square_t square = pop_lsb(color_piece_bitboard);
+      score += value_jump_table[to_color(piece, color)](square, endgame_factor);
     };
-  };
-  for (piece_t opponent_piece : opponent_pieces) {
-    bitboard_t opponent_piece_bitboard = board.bitboards[opponent_piece];
     while (opponent_piece_bitboard) {
       square_t square = pop_lsb(opponent_piece_bitboard);
-      score -= value_jump_table[opponent_piece](square, endgame_factor);
+      score -= value_jump_table[to_color(piece, opponent)](square, endgame_factor);
     };
   };
-
   return score;
 };

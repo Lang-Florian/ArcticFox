@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <string>
 
 unsigned long long nanoseconds() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -30,4 +31,13 @@ unsigned long long minutes() {
   return std::chrono::duration_cast<std::chrono::minutes>(
     std::chrono::system_clock::now().time_since_epoch()
   ).count();
+};
+
+std::string timestamp() {
+  std::time_t time = std::chrono::system_clock::to_time_t(
+    std::chrono::system_clock::now()
+  );
+  char timestamp[20];
+  strftime(timestamp, 20, "%Y-%m-%d %H:%M:%S", std::localtime(&time));
+  return std::string(timestamp);
 };

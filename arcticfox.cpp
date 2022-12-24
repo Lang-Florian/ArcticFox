@@ -1,4 +1,5 @@
 #include <iostream>
+#include "modules/log.cpp"
 #include "uci.cpp"
 
 /***********************************************************************
@@ -19,7 +20,7 @@
 ***********************************************************************/
 
 int main(int argc, char *argv[]) {
-  // parse command line arguments if any
+  setup_log_path(LOG_FILE);
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
     if (arg == "-v" || arg == "--version") {

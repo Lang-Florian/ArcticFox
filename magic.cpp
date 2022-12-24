@@ -4,16 +4,17 @@
 #include <array>
 #include "base.cpp"
 
-/*
+/***********************************************************************
+ * 
+ * Module to generate the magic table at compile time.
+ * 
+ * kudos to Volker Annuss who came up with the idea
+ * and generated the magic numbers:
+ * https://www.talkchess.com/forum3/viewtopic.php?t=64790
+ * 
+***********************************************************************/
 
-	Module to generate the magic table at compile time.
-
-	kudos to Volker Annuss who came up with the idea and generated the magic numbers:
-	https://www.talkchess.com/forum3/viewtopic.php?t=64790
-
-*/
-
-// generate the incomplete bishop and rook attack rays
+// generate the incomplete bishop attack rays at compile time
 constexpr std::array<bitboard_t, 64> _generate_incomplete_bishop_ray() {
 	std::array<bitboard_t, 64> incomplete_bishop_ray{0ULL};
 	for (square_t square = 0; square < none_square; ++square) {
@@ -31,6 +32,7 @@ constexpr std::array<bitboard_t, 64> _generate_incomplete_bishop_ray() {
 };
 constexpr std::array<bitboard_t, 64> incomplete_bishop_ray = _generate_incomplete_bishop_ray();
 
+// generate the incomplete rook attack rays at compile time
 constexpr std::array<bitboard_t, 64> _generate_incomplete_rook_ray() {
 	std::array<bitboard_t, 64> incomplete_rook_ray{0ULL};
 	for (square_t square = 0; square < none_square; ++square) {
@@ -48,7 +50,7 @@ constexpr std::array<bitboard_t, 64> _generate_incomplete_rook_ray() {
 };
 constexpr std::array<bitboard_t, 64> incomplete_rook_ray = _generate_incomplete_rook_ray();
 
-// generate correct bishop and rook attacks for each square and occupancy
+// generate correct bishop attacks for each square and occupancy
 constexpr bitboard_t _bishop_attacks(square_t square, bitboard_t occupancy) {
 	bitboard_t bishop_attacks = 0ULL;
 	for (int i = 1; i <= square % 8 && i <= square / 8; i++) {
@@ -74,6 +76,7 @@ constexpr bitboard_t _bishop_attacks(square_t square, bitboard_t occupancy) {
 	return bishop_attacks;
 };
 
+// generate correct rook attacks for each square and occupancy
 constexpr bitboard_t _rook_attacks(square_t square, bitboard_t occupancy) {
 	bitboard_t rook_attacks = 0ULL;
 	for (int i = 1; i <= square % 8; i++) {
@@ -111,7 +114,6 @@ constexpr bitboard_t _generate_occupancy(int index, bitboard_t ray) {
 	return occupancy;
 };
 
-// define the magic struct
 struct magic_t {
 	u64_t magic_number;
 	bitboard_t mask;

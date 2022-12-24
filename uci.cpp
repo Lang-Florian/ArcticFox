@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include "modules/system.cpp"
 #include "base.cpp"
 #include "board.cpp"
 #include "debug.cpp"
@@ -10,11 +11,11 @@
 #include "search.cpp"
 #include "transposition.cpp"
 
-/*
-
-  Module to handle the UCI protocol.
-
-*/
+/***********************************************************************
+ *
+ * Module to handle the UCI protocol.
+ * 
+***********************************************************************/
 
 // uci go command
 void go(Board& board, std::istringstream& string_stream) {
@@ -26,15 +27,14 @@ void go(Board& board, std::istringstream& string_stream) {
       std::string movetype;
       string_stream >> depth;
       string_stream >> movetype;
-      if (movetype == "quiet") {
+      if (movetype == "quiet")
         perft<quiet>(board, depth, true);
-      } else if (movetype == "check") {
+      else if (movetype == "check")
         perft<check>(board, depth, true);
-      } else if (movetype == "capture") {
+      else if (movetype == "capture")
         perft<capture>(board, depth, true);
-      } else {
+      else
         perft<legal>(board, depth, true);
-      };
       return;
     } else if (token == "depth") {
       string_stream >> depth;
@@ -58,9 +58,8 @@ void position(Board& board, std::istringstream& string_stream) {
     board.set_fen(fen);
   };
   if (token == "moves") {
-    while (string_stream >> token) {
+    while (string_stream >> token)
       board.make(board.from_uci(token));
-    };
   };
 };
 
@@ -78,7 +77,9 @@ void test(Board& board, std::istringstream& string_stream) {
 // uci main loop
 void uci_loop() {
   std::cout << ENGINE_NAME << " v" << VERSION << " by " << AUTHOR << "\n";
-  std::cout << "info string transposition table size " << (table_size() >> 30) << "GiB\n";
+  std::cout << "info string total ram " << (total_ram() >> 20) << "MiB\n";
+  std::cout << "info string free ram " << (free_ram() >> 20) << "MiB\n";
+  std::cout << "info string transposition table size " << (table_size() >> 20) << "MiB\n";
   Board board;
   std::string token, command;
   do {

@@ -14,11 +14,11 @@
 #include "king.cpp"
 #include "king_castling.cpp"
 
-/*
-
-  Module for move generation.
-
-*/
+/***********************************************************************
+ *
+ * Module for move generation.
+ * 
+***********************************************************************/
 
 template<color_t color, movetype_t movetype, typename T>
 T generate(Board& board) {

@@ -8,3 +8,7 @@ template <typename T>
 T random() {
   return _random_generator();
 };
+
+void seed(u64_t seed) {
+  _random_generator.seed(seed);
+};
